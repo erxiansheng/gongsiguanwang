@@ -76,6 +76,10 @@ export interface SiteContent {
     brandName: string
     title: string
     description: string
+    seoKeywords: string
+    seoRobots: string
+    faviconUrl: string
+    icp: string
     footerText: string
     copyright: string
     privacyLabel: string
@@ -203,6 +207,10 @@ export const defaultSiteContent: SiteContent = {
     brandName: '澄造数字',
     title: '澄造数字 | 品牌与数字体验工作室',
     description: '以策略、设计与技术帮助品牌建立清晰、有温度、可持续增长的数字体验。',
+    seoKeywords: '品牌设计, 网站建设, 用户体验设计, 数字化转型, 企业官网',
+    seoRobots: 'index, follow',
+    faviconUrl: '',
+    icp: '沪ICP备20260505号-1',
     footerText: '我们为品牌打造清晰可信的数字体验，让创意、技术与业务目标落在同一个方向上。',
     copyright: '保留所有权利。',
     privacyLabel: '隐私政策',

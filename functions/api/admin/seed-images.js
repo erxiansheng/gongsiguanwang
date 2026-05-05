@@ -1,7 +1,7 @@
 import { createESAHandler, error, getKV, handleCors, json, requireAuth } from '../_helpers.js'
 import { fetchAndStoreImage } from '../_assets.js'
 
-const IMAGE_KEY_PATTERN = /(image|logo|avatar|featuredImage|heroImage|approachImage|ctaImage)$/i
+const IMAGE_KEY_PATTERN = /(image|logo|avatar|featuredImage|heroImage|approachImage|ctaImage|faviconUrl)$/i
 const REMOTE_IMAGE_PATTERN = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg|ico|bmp)(\?.*)?$/i
 
 export async function onRequestPost({ request, env }) {

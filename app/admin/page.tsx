@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { LogOut, RefreshCw, Save, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import ContentEditor from './content-editor'
 import { defaultSiteContent } from '@/lib/site-content'
 
 interface ContactMessage {
@@ -21,7 +21,7 @@ export default function AdminPage() {
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('admin123456')
   const [token, setToken] = useState<string | null>(null)
-  const [contentText, setContentText] = useState(JSON.stringify(defaultSiteContent, null, 2))
+  const [draftContent, setDraftContent] = useState<any>(defaultSiteContent)
   const [status, setStatus] = useState('请登录后编辑站点内容。')
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [isSaving, setIsSaving] = useState(false)
@@ -73,7 +73,7 @@ export default function AdminPage() {
       const response = await fetch('/api/admin/content', { headers: authHeaders, cache: 'no-store' })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '读取内容失败')
-      setContentText(JSON.stringify(result.content || defaultSiteContent, null, 2))
+      setDraftContent(result.content || defaultSiteContent)
       setStatus('内容已加载。')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '读取内容失败')
@@ -85,18 +85,17 @@ export default function AdminPage() {
     setIsSaving(true)
     setStatus('正在保存内容...')
     try {
-      const parsed = JSON.parse(contentText)
       const response = await fetch('/api/admin/content', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ content: parsed }),
+        body: JSON.stringify({ content: draftContent }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '保存失败')
-      setContentText(JSON.stringify(result.content, null, 2))
+      setDraftContent(result.content)
       setStatus('保存成功，前台刷新后会读取最新内容。')
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '保存失败，请检查内容格式。')
+      setStatus(error instanceof Error ? error.message : '保存失败，请稍后重试。')
     } finally {
       setIsSaving(false)
     }
@@ -176,7 +175,7 @@ export default function AdminPage() {
     setIsSeedingImages(true)
     setStatus('正在初始化远程图片到 KV...')
     try {
-      let currentContent = JSON.parse(contentText)
+      let currentContent = draftContent
       let remaining = 1
       let processedCount = 0
       const failed: string[] = []
@@ -201,7 +200,7 @@ export default function AdminPage() {
         if ((result.processed?.length || 0) === 0 && remaining > 0) break
       }
 
-      setContentText(JSON.stringify(currentContent, null, 2))
+      setDraftContent(currentContent)
       const suffix = failed.length ? `\n部分图片失败：\n${failed.join('\n')}` : ''
       setStatus(`图片初始化完成，已替换为当前域名下的 KV 图片地址。请点击“保存内容”。${suffix}`)
     } catch (error) {
@@ -270,8 +269,8 @@ export default function AdminPage() {
           <section className="rounded-lg border border-border bg-card p-6">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-xl font-bold">全部可编辑内容</h2>
-                <p className="text-sm text-muted-foreground mt-1">保持结构完整即可修改页面文字、图片、项目、伙伴、团队、常见问题和联系信息。</p>
+                <h2 className="text-xl font-bold">可视化内容编辑</h2>
+                <p className="text-sm text-muted-foreground mt-1">按模块编辑页面文字、图片、项目、伙伴、团队、常见问题和联系信息。</p>
               </div>
               <label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted">
                 <Upload className="mr-2 h-4 w-4" />{isUploading ? '上传中' : '上传图片'}
@@ -281,12 +280,7 @@ export default function AdminPage() {
                 <Upload className="mr-2 h-4 w-4" />{isSeedingImages ? '初始化中' : '初始化图片到 KV'}
               </Button>
             </div>
-            <Textarea
-              value={contentText}
-              onChange={(event) => setContentText(event.target.value)}
-              spellCheck={false}
-              className="min-h-[680px] resize-y font-mono text-sm leading-6"
-            />
+            <ContentEditor content={draftContent} onChange={setDraftContent} />
           </section>
 
           <aside className="space-y-6">
