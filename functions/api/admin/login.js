@@ -1,7 +1,7 @@
 import { createESAHandler, createToken, error, handleCors, json } from '../_helpers.js'
 
-const DEFAULT_USERNAME = 'admin'
-const DEFAULT_PASSWORD = 'admin123456'
+const DEFAULT_USERNAME = 'adminjkyc'
+const DEFAULT_PASSWORD = 'Jkyc@2026'
 
 export async function onRequestPost({ request, env }) {
   try {
