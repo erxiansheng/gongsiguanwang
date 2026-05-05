@@ -1,72 +1,128 @@
-import { json, error, handleCors, requireAuth, getKV } from '../_helpers.js'
-import { createESAHandler } from '../_helpers.js'
+import { createESAHandler, error, getJson, getKV, handleCors, json, putJson, requireAuth } from '../_helpers.js'
+import {
+  arrayBufferToBase64,
+  base64ToUint8Array,
+  createStoredFilename,
+  getExtension,
+  getPublicUploadUrl,
+  isAllowedImageType,
+  MAX_IMAGE_SIZE,
+  MAX_REQUEST_FILE_SIZE,
+  saveImageToKV
+} from '../_assets.js'
+
+const UPLOAD_PREFIX = 'upload:image:'
 
 export async function onRequestPost({ request, env }) {
   try {
     await requireAuth(request, env)
     const kv = getKV(env)
-
     const formData = await request.formData()
-    const file = formData.get('file')
-    if (!file) return error('没有文件')
+    const chunk = formData.get('chunk')
 
-    const ext = file.name.split('.').pop().toLowerCase()
-    const allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'bmp', 'glb', 'gltf']
-    if (!allowed.includes(ext)) return error('不支持的文件格式')
-    if (file.size > 900 * 1024) return error('文件不能超过 900KB，请先压缩后上传')
-
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-
-    // 文件转 base64 存入 KV
-    const buffer = await file.arrayBuffer()
-    const bytes = new Uint8Array(buffer)
-
-    // 高效 base64 编码：分批处理避免超大字符串拼接导致边缘函数超时
-    const BATCH = 32768
-    const parts = []
-    for (let i = 0; i < bytes.byteLength; i += BATCH) {
-      const slice = bytes.subarray(i, Math.min(i + BATCH, bytes.byteLength))
-      parts.push(String.fromCharCode.apply(null, slice))
-    }
-    const base64 = btoa(parts.join(''))
-
-    // 大文件分块存储（KV 单个 key 限制约 1.5MB，base64 后更大）
-    const CHUNK_SIZE = 512 * 1024 // 512KB per chunk (safer for KV limits)
-    if (base64.length > CHUNK_SIZE) {
-      const totalChunks = Math.ceil(base64.length / CHUNK_SIZE)
-      // 并行写入所有 chunks（减少串行 KV 调用次数）
-      const chunkOps = []
-      for (let i = 0; i < totalChunks; i++) {
-        const chunk = base64.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-        chunkOps.push(kv.put(`image:${filename}:chunk:${i}`, chunk))
-      }
-      // 同时写入 meta 和主 key
-      chunkOps.push(kv.put(`image_meta:${filename}`, JSON.stringify({
-        contentType: file.type, size: file.size, originalName: file.name,
-        chunked: true, totalChunks
-      })))
-      chunkOps.push(kv.put(`image:${filename}`, JSON.stringify({ chunked: true, totalChunks })))
-      await Promise.all(chunkOps)
-    } else {
-      await Promise.all([
-        kv.put(`image:${filename}`, base64),
-        kv.put(`image_meta:${filename}`, JSON.stringify({
-          contentType: file.type, size: file.size, originalName: file.name
-        }))
-      ])
+    if (chunk) {
+      return handleChunkUpload({ kv, request, formData, chunk })
     }
 
-    // 更新图片索引
-    const indexStr = await kv.get('images:index')
-    const index = indexStr ? JSON.parse(indexStr) : []
-    index.unshift({ filename, contentType: file.type, size: file.size, originalName: file.name, createdAt: Date.now() })
-    await kv.put('images:index', JSON.stringify(index))
-
-    return json({ url: `/uploads/${filename}`, filename })
-  } catch (e) {
-    if (e.message === 'Unauthorized') return error('未授权', 401)
-    return error(e.message, 500)
+    return handleDirectUpload({ kv, request, formData })
+  } catch (requestError) {
+    if (requestError.message === 'Unauthorized') return error('未授权', 401)
+    return error(requestError.message, 500)
   }
+}
+
+async function handleDirectUpload({ kv, request, formData }) {
+  const file = formData.get('file')
+  if (!file) return error('没有文件')
+  if (file.size > MAX_IMAGE_SIZE) return error('单个图片不能超过 10M')
+  if (file.size > MAX_REQUEST_FILE_SIZE) return error('请使用分片上传')
+
+  const extension = getExtension(file.name, file.type)
+  if (!isAllowedImageType(extension)) return error('不支持的图片格式')
+
+  const buffer = await file.arrayBuffer()
+  const filename = createStoredFilename(file.name, file.type)
+  const base64 = arrayBufferToBase64(buffer)
+  await saveImageToKV(kv, {
+    filename,
+    originalName: file.name,
+    contentType: file.type,
+    base64,
+    size: file.size
+  })
+
+  return json({ url: getPublicUploadUrl(request, filename), filename })
+}
+
+async function handleChunkUpload({ kv, request, formData, chunk }) {
+  const sessionId = String(formData.get('sessionId') || '')
+  const originalName = String(formData.get('filename') || chunk.name || '')
+  const contentType = String(formData.get('contentType') || chunk.type || 'image/png')
+  const totalSize = Number(formData.get('totalSize') || 0)
+  const index = Number(formData.get('index') || 0)
+  const totalChunks = Number(formData.get('totalChunks') || 1)
+  const complete = String(formData.get('complete') || 'false') === 'true'
+
+  if (!sessionId) return error('缺少上传会话')
+  if (!Number.isFinite(index) || !Number.isFinite(totalChunks) || index < 0 || totalChunks < 1) return error('分片参数不正确')
+  if (!totalSize || totalSize > MAX_IMAGE_SIZE) return error('单个图片不能超过 10M')
+  if (chunk.size > MAX_REQUEST_FILE_SIZE) return error('单个分片不能超过 900KB')
+
+  const extension = getExtension(originalName, contentType)
+  if (!isAllowedImageType(extension)) return error('不支持的图片格式')
+
+  const metaKey = `${UPLOAD_PREFIX}${sessionId}:meta`
+  const chunkKey = `${UPLOAD_PREFIX}${sessionId}:chunk:${index}`
+  const existingMeta = await getJson(kv, metaKey, null)
+  const meta = existingMeta || {
+    filename: createStoredFilename(originalName, contentType),
+    originalName,
+    contentType,
+    totalSize,
+    totalChunks,
+    received: [],
+    createdAt: Date.now()
+  }
+
+  const base64 = arrayBufferToBase64(await chunk.arrayBuffer())
+  await kv.put(chunkKey, base64)
+  meta.received = Array.from(new Set([...(meta.received || []), index])).sort((a, b) => a - b)
+  await putJson(kv, metaKey, meta)
+
+  if (!complete && meta.received.length < totalChunks) {
+    return json({ uploading: true, received: meta.received.length, totalChunks })
+  }
+
+  if (meta.received.length < totalChunks) {
+    return json({ uploading: true, received: meta.received.length, totalChunks })
+  }
+
+  const merged = new Uint8Array(totalSize)
+  let offset = 0
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const storedChunk = await kv.get(`${UPLOAD_PREFIX}${sessionId}:chunk:${chunkIndex}`)
+    if (!storedChunk) return error(`缺少第 ${chunkIndex + 1} 个分片`, 400)
+    const bytes = base64ToUint8Array(storedChunk)
+    merged.set(bytes, offset)
+    offset += bytes.byteLength
+  }
+
+  const finalBase64 = arrayBufferToBase64(merged.buffer)
+  await saveImageToKV(kv, {
+    filename: meta.filename,
+    originalName: meta.originalName,
+    contentType: meta.contentType,
+    base64: finalBase64,
+    size: totalSize
+  })
+
+  const cleanup = [kv.delete(metaKey)]
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    cleanup.push(kv.delete(`${UPLOAD_PREFIX}${sessionId}:chunk:${chunkIndex}`))
+  }
+  await Promise.all(cleanup)
+
+  return json({ url: getPublicUploadUrl(request, meta.filename), filename: meta.filename })
 }
 
 export async function onRequestOptions() {

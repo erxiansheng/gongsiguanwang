@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isSeedingImages, setIsSeedingImages] = useState(false)
 
   const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
@@ -102,19 +103,17 @@ export default function AdminPage() {
   }
 
   async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) {
-    if (!token || !event.target.files?.[0]) return
+    const file = event.target.files?.[0]
+    if (!token || !file) return
     setIsUploading(true)
     setStatus('正在上传图片...')
     try {
-      const formData = new FormData()
-      formData.append('file', event.target.files[0])
-      const response = await fetch('/api/admin/upload', {
-        method: 'POST',
-        headers: authHeaders,
-        body: formData,
-      })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error || '上传失败')
+      if (file.size > 10 * 1024 * 1024) throw new Error('单个图片不能超过 10M')
+
+      const result = file.size > 900 * 1024
+        ? await uploadImageInChunks(file)
+        : await uploadImageDirectly(file)
+
       await navigator.clipboard?.writeText(result.url)
       setStatus(`上传成功，图片地址已复制：${result.url}`)
     } catch (error) {
@@ -122,6 +121,93 @@ export default function AdminPage() {
     } finally {
       setIsUploading(false)
       event.target.value = ''
+    }
+  }
+
+  async function uploadImageDirectly(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await fetch('/api/admin/upload', {
+      method: 'POST',
+      headers: authHeaders,
+      body: formData,
+    })
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.error || '上传失败')
+    return result
+  }
+
+  async function uploadImageInChunks(file: File) {
+    const chunkSize = 600 * 1024
+    const totalChunks = Math.ceil(file.size / chunkSize)
+    const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    let finalResult: { url: string; filename: string } | null = null
+
+    for (let index = 0; index < totalChunks; index++) {
+      const start = index * chunkSize
+      const end = Math.min(start + chunkSize, file.size)
+      const formData = new FormData()
+      formData.append('chunk', file.slice(start, end), file.name)
+      formData.append('sessionId', sessionId)
+      formData.append('index', String(index))
+      formData.append('totalChunks', String(totalChunks))
+      formData.append('filename', file.name)
+      formData.append('contentType', file.type || 'image/png')
+      formData.append('totalSize', String(file.size))
+      formData.append('complete', String(index === totalChunks - 1))
+      setStatus(`正在上传图片分片 ${index + 1}/${totalChunks}...`)
+
+      const response = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: authHeaders,
+        body: formData,
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || '分片上传失败')
+      if (result.url) finalResult = result
+    }
+
+    if (!finalResult) throw new Error('图片合并失败')
+    return finalResult
+  }
+
+  async function seedImagesToKV() {
+    if (!token) return
+    setIsSeedingImages(true)
+    setStatus('正在初始化远程图片到 KV...')
+    try {
+      let currentContent = JSON.parse(contentText)
+      let remaining = 1
+      let processedCount = 0
+      const failed: string[] = []
+
+      while (remaining > 0) {
+        const response = await fetch('/api/admin/seed-images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({ content: currentContent, limit: 4 }),
+        })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || '初始化图片失败')
+
+        currentContent = result.content
+        processedCount += result.processed?.length || 0
+        remaining = result.remaining || 0
+        if (Array.isArray(result.failed)) {
+          result.failed.forEach((item: { source: string; error: string }) => failed.push(`${item.source}：${item.error}`))
+        }
+        setStatus(`已写入 ${processedCount} 张图片到 KV，剩余 ${remaining} 张...`)
+
+        if ((result.processed?.length || 0) === 0 && remaining > 0) break
+      }
+
+      setContentText(JSON.stringify(currentContent, null, 2))
+      const suffix = failed.length ? `\n部分图片失败：\n${failed.join('\n')}` : ''
+      setStatus(`图片初始化完成，已替换为当前域名下的 KV 图片地址。请点击“保存内容”。${suffix}`)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '初始化图片失败')
+    } finally {
+      setIsSeedingImages(false)
     }
   }
 
@@ -191,6 +277,9 @@ export default function AdminPage() {
                 <Upload className="mr-2 h-4 w-4" />{isUploading ? '上传中' : '上传图片'}
                 <input type="file" accept="image/*,.svg,.webp" className="sr-only" onChange={uploadImage} />
               </label>
+              <Button variant="outline" onClick={seedImagesToKV} disabled={isSeedingImages}>
+                <Upload className="mr-2 h-4 w-4" />{isSeedingImages ? '初始化中' : '初始化图片到 KV'}
+              </Button>
             </div>
             <Textarea
               value={contentText}

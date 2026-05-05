@@ -21,6 +21,7 @@ import adminCategoryByNameHandler from './api/admin/categories/[name].js'
 import adminCommentsHandler from './api/admin/comments.js'
 import adminImagesHandler from './api/admin/images.js'
 import adminUploadHandler from './api/admin/upload.js'
+import adminSeedImagesHandler from './api/admin/seed-images.js'
 import adminStatsHandler from './api/admin/stats.js'
 import adminBackupHandler from './api/admin/backup.js'
 import adminNavlinksHandler from './api/admin/navlinks.js'
@@ -46,6 +47,7 @@ const exactRoutes = {
   '/api/admin/comments': adminCommentsHandler,
   '/api/admin/images': adminImagesHandler,
   '/api/admin/upload': adminUploadHandler,
+  '/api/admin/seed-images': adminSeedImagesHandler,
   '/api/admin/stats': adminStatsHandler,
   '/api/admin/backup': adminBackupHandler,
   '/api/admin/navlinks': adminNavlinksHandler,
