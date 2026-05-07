@@ -9,11 +9,11 @@ import { useSiteContent } from '@/hooks/use-site-content'
 const benefitIcons = [Compass, Lightbulb, Handshake, CircleDollarSign, MessageCircle, Network]
 
 export default function PartnersPage() {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
   const page = content.partnersPage
 
   return (
-    <div className="pt-24">
+    <div className={`pt-24 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
       <section className="py-20 md:py-28">
         <div className="container px-4 md:px-6">
           <div className="max-w-3xl mx-auto text-center">
@@ -31,8 +31,8 @@ export default function PartnersPage() {
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {content.partners.map((partner, index) => (
-              <div key={`${partner.name}-${index}`} className="bg-card rounded-lg border border-border hover:border-primary/50 transition-all duration-300">
-                <div className="h-48 relative overflow-hidden">
+              <div key={`${partner.name}-${index}`} className="overflow-hidden bg-card rounded-lg border border-border hover:border-primary/50 transition-all duration-300">
+                <div className="relative h-64 overflow-hidden md:h-72">
                   <Image
                     src={partner.logo}
                     alt={partner.name}
@@ -43,12 +43,8 @@ export default function PartnersPage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
                 </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-3">{partner.name}</h3>
-                  <p className="text-muted-foreground mb-6">{partner.description}</p>
-                  <blockquote className="border-l-2 border-primary pl-4 italic text-sm text-muted-foreground">
-                    “{partner.testimonial}”
-                  </blockquote>
+                <div className="p-5">
+                  <h3 className="text-xl font-bold">{partner.name}</h3>
                 </div>
               </div>
             ))}

@@ -9,11 +9,11 @@ import { useSiteContent } from '@/hooks/use-site-content'
 const valueIcons = [Star, Users, Sparkles, Heart]
 
 export default function AboutPage() {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
   const about = content.about
 
   return (
-    <div className="pt-24">
+    <div className={`pt-24 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
       <section className="py-20 md:py-28">
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">

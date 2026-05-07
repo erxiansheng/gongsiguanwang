@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { defaultSiteContent, SiteContent } from '@/lib/site-content'
+import { defaultSiteContent, normalizeSiteContent, SiteContent } from '@/lib/site-content'
 
 export function useSiteContent() {
-  const [content, setContent] = useState<SiteContent>(defaultSiteContent)
+  const [content, setContent] = useState<SiteContent | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -17,12 +17,12 @@ export function useSiteContent() {
         if (!response.ok) throw new Error('内容接口暂时不可用')
         const data = await response.json()
         if (!cancelled && data?.content) {
-          setContent(data.content)
+          setContent(normalizeSiteContent(data.content))
         }
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : '内容加载失败')
-          setContent(defaultSiteContent)
+          setContent(normalizeSiteContent(defaultSiteContent))
         }
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -36,5 +36,5 @@ export function useSiteContent() {
     }
   }, [])
 
-  return { content, isLoading, error }
+  return { content: content ?? defaultSiteContent, isLoading, error }
 }

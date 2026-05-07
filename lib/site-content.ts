@@ -32,9 +32,7 @@ export interface Person {
 
 export interface Partner {
   name: string
-  description: string
   logo: string
-  testimonial: string
 }
 
 export interface Service {
@@ -60,7 +58,9 @@ export interface NavigationItem {
 
 export interface SocialLink {
   name: string
-  href: string
+  href?: string
+  icon?: 'qq' | 'wechat'
+  qrCode?: string
 }
 
 export interface ContactInfo {
@@ -175,14 +175,19 @@ export interface SiteContent {
     fields: {
       name: string
       namePlaceholder: string
+      nameRequired: boolean
       email: string
       emailPlaceholder: string
+      emailRequired: boolean
       phone: string
       phonePlaceholder: string
+      phoneRequired: boolean
       company: string
       companyPlaceholder: string
+      companyRequired: boolean
       message: string
       messagePlaceholder: string
+      messageRequired: boolean
     }
     infoTitle: string
     labels: {
@@ -370,14 +375,19 @@ export const defaultSiteContent: SiteContent = {
     fields: {
       name: '姓名',
       namePlaceholder: '请输入你的姓名',
+      nameRequired: true,
       email: '邮箱',
       emailPlaceholder: '请输入邮箱地址',
+      emailRequired: true,
       phone: '电话（选填）',
       phonePlaceholder: '请输入联系电话',
+      phoneRequired: false,
       company: '公司（选填）',
       companyPlaceholder: '请输入公司名称',
+      companyRequired: false,
       message: '需求说明',
-      messagePlaceholder: '请简单描述项目背景、目标和时间安排'
+      messagePlaceholder: '请简单描述项目背景、目标和时间安排',
+      messageRequired: true
     },
     infoTitle: '联系信息',
     labels: {
@@ -393,9 +403,8 @@ export const defaultSiteContent: SiteContent = {
       addressLines: ['上海市徐汇区创意园 18 号', '澄造数字工作室'],
       hoursLines: ['周一至周五：09:30 - 18:30', '周六：10:00 - 14:00'],
       socialLinks: [
-        { name: '小红书', href: '#' },
-        { name: '微博', href: '#' },
-        { name: '领英', href: '#' }
+        { name: 'QQ', href: '#', icon: 'qq', qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=chengzao-qq' },
+        { name: '微信', href: '#', icon: 'wechat', qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=chengzao-wechat' }
       ]
     },
     image: 'https://images.pexels.com/photos/2041627/pexels-photo-2041627.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
@@ -411,12 +420,12 @@ export const defaultSiteContent: SiteContent = {
     ]
   },
   partners: [
-    { name: '辰星科技', description: '专注可持续创新的企业级技术公司。', logo: 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', testimonial: '澄造数字帮助我们让数字形象更准确地表达了创新能力。' },
-    { name: '绿境计划', description: '关注生态保护与公众教育的公益组织。', logo: 'https://images.pexels.com/photos/3182812/pexels-photo-3182812.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', testimonial: '新网站让捐赠和志愿者报名流程更顺畅，转化有明显提升。' },
-    { name: '城居造物', description: '为紧凑城市空间设计现代家具的生活方式品牌。', logo: 'https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', testimonial: '他们建立的品牌识别系统准确捕捉了我们的审美和价值观。' },
-    { name: '脉冲传媒', description: '关注新文化趋势与数字内容传播的媒体公司。', logo: 'https://images.pexels.com/photos/3182781/pexels-photo-3182781.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', testimonial: '内容结构和视觉更新让我们的受众互动更稳定。' },
-    { name: '峰汇金融', description: '面向数字经济的新型金融服务平台。', logo: 'https://images.pexels.com/photos/3183183/pexels-photo-3183183.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', testimonial: '官网改版后，潜在客户咨询量有了清晰增长。' },
-    { name: '远景健康', description: '提供便捷远程医疗服务的健康科技品牌。', logo: 'https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', testimonial: '他们把复杂的医疗服务流程设计得更容易理解和操作。' }
+    { name: '辰星科技', logo: 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
+    { name: '绿境计划', logo: 'https://images.pexels.com/photos/3182812/pexels-photo-3182812.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
+    { name: '城居造物', logo: 'https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
+    { name: '脉冲传媒', logo: 'https://images.pexels.com/photos/3182781/pexels-photo-3182781.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
+    { name: '峰汇金融', logo: 'https://images.pexels.com/photos/3183183/pexels-photo-3183183.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
+    { name: '远景健康', logo: 'https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' }
   ],
   projects: [
     {
@@ -504,4 +513,74 @@ export const defaultSiteContent: SiteContent = {
       detailConclusion: '最终方案帮助活动在有限时间内获得更高质量的关注和报名转化。'
     }
   ]
+}
+
+type PlainObject = Record<string, unknown>
+
+function isPlainObject(value: unknown): value is PlainObject {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function mergeContentValue<T>(defaults: T, value: unknown): T {
+  if (Array.isArray(defaults)) return (Array.isArray(value) ? value : defaults) as T
+  if (isPlainObject(defaults)) {
+    const source = isPlainObject(value) ? value : {}
+    return Object.fromEntries(
+      Object.entries(defaults).map(([key, defaultValue]) => [key, mergeContentValue(defaultValue, source[key])])
+    ) as T
+  }
+  return (value === undefined || value === null ? defaults : value) as T
+}
+
+function normalizePartners(partners: Partner[]): Partner[] {
+  return partners.map((partner, index) => {
+    const fallback = defaultSiteContent.partners[index] || defaultSiteContent.partners[0]
+    return {
+      name: partner.name || fallback.name,
+      logo: partner.logo || fallback.logo
+    }
+  })
+}
+
+function normalizeSocialLinks(links: SocialLink[]): SocialLink[] {
+  const defaults = defaultSiteContent.contact.info.socialLinks
+  const source = Array.isArray(links) && links.length > 0 ? links : defaults
+  const hasQrConfig = source.some((link) => link.icon || link.qrCode)
+  const selected = hasQrConfig ? source : defaults
+
+  return selected.slice(0, 2).map((link, index) => {
+    const fallback = defaults[index] || defaults[0]
+    const icon = link.icon === 'wechat' || link.icon === 'qq' ? link.icon : fallback.icon
+    return {
+      name: link.name || fallback.name,
+      href: link.href || fallback.href || '#',
+      icon,
+      qrCode: link.qrCode || fallback.qrCode || ''
+    }
+  })
+}
+
+export function normalizeSiteContent(content: unknown): SiteContent {
+  const merged = mergeContentValue(defaultSiteContent, content)
+  const fields = merged.contact.fields
+
+  return {
+    ...merged,
+    partners: normalizePartners(merged.partners),
+    contact: {
+      ...merged.contact,
+      fields: {
+        ...fields,
+        nameRequired: fields.nameRequired !== false,
+        emailRequired: fields.emailRequired !== false,
+        phoneRequired: fields.phoneRequired === true,
+        companyRequired: fields.companyRequired === true,
+        messageRequired: fields.messageRequired !== false
+      },
+      info: {
+        ...merged.contact.info,
+        socialLinks: normalizeSocialLinks(merged.contact.info.socialLinks)
+      }
+    }
+  }
 }

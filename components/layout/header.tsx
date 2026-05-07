@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { useSiteContent } from '@/hooks/use-site-content'
 
 export default function Header() {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
   const { theme, setTheme } = useTheme()
   const [isScrolled, setIsScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -30,7 +30,8 @@ export default function Header() {
         'fixed top-0 w-full z-50 transition-all duration-300',
         isScrolled
           ? 'bg-background/80 backdrop-blur-sm py-4 shadow-sm border-b border-border'
-          : 'bg-transparent py-6'
+          : 'bg-transparent py-6',
+        isLoading ? 'opacity-0' : 'opacity-100'
       )}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">

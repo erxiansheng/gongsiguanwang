@@ -1,18 +1,16 @@
 "use client"
 
 import Link from 'next/link'
-import { Github, Instagram, Linkedin, Twitter } from 'lucide-react'
+import SocialQrButton from '@/components/social-qr-button'
 import { useSiteContent } from '@/hooks/use-site-content'
 
-const socialIcons = [Instagram, Twitter, Linkedin, Github]
-
 export default function Footer() {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
   const serviceLinks = content.home.services.map((service) => service.title)
   const contact = content.contact.info
 
   return (
-    <footer className="bg-muted/30 py-16 mt-24">
+    <footer className={`bg-muted/30 py-16 mt-24 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
       <div className="container px-4 md:px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div className="space-y-4">
@@ -21,15 +19,13 @@ export default function Footer() {
               {content.site.footerText}
             </p>
             <div className="flex space-x-4 pt-2">
-              {contact.socialLinks.map((link, index) => {
-                const Icon = socialIcons[index] || Instagram
-                return (
-                  <Link key={`${link.name}-${index}`} href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
-                    <Icon className="h-5 w-5" />
-                    <span className="sr-only">{link.name}</span>
-                  </Link>
-                )
-              })}
+              {contact.socialLinks.map((link, index) => (
+                <SocialQrButton
+                  key={`${link.name}-${index}`}
+                  link={link}
+                  className="border-0 bg-transparent text-muted-foreground hover:bg-transparent hover:text-foreground"
+                />
+              ))}
             </div>
           </div>
 

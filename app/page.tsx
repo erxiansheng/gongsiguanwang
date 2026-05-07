@@ -12,10 +12,10 @@ import { useSiteContent } from '@/hooks/use-site-content'
 const serviceIcons = [PenTool, Code, Users, BarChart]
 
 export default function Home() {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
 
   return (
-    <div className="flex flex-col w-full">
+    <div className={`flex flex-col w-full transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
       <section className="relative h-screen flex items-center">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-background/20 dark:from-background/95 dark:via-background/80 dark:to-background/95 z-10" />

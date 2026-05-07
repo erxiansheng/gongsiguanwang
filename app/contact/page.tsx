@@ -1,12 +1,11 @@
 "use client"
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import Link from 'next/link'
 import Image from 'next/image'
-import { Clock, Instagram, Linkedin, Mail, MapPin, Phone, Send, Twitter } from 'lucide-react'
+import { Clock, Mail, MapPin, Phone, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -18,26 +17,37 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import SocialQrButton from '@/components/social-qr-button'
 import { useSiteContent } from '@/hooks/use-site-content'
+import type { SiteContent } from '@/lib/site-content'
 
-const formSchema = z.object({
-  name: z.string().min(2, { message: '姓名至少需要 2 个字符。' }),
-  email: z.string().email({ message: '请输入有效的邮箱地址。' }),
-  phone: z.string().optional(),
-  company: z.string().optional(),
-  message: z.string().min(10, { message: '需求说明至少需要 10 个字符。' }),
-})
+type ContactFields = SiteContent['contact']['fields']
+type ContactFieldName = 'name' | 'email' | 'phone' | 'company' | 'message'
 
-type FormValues = z.infer<typeof formSchema>
+interface FormValues {
+  name: string
+  email: string
+  phone: string
+  company: string
+  message: string
+}
 
-const socialIcons = [Instagram, Twitter, Linkedin]
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function ContactPage() {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const contact = content.contact
+  const formSchema = useMemo(() => createContactFormSchema(contact.fields), [contact.fields])
+  const required = useMemo(() => ({
+    name: isFieldRequired(contact.fields, 'name'),
+    email: isFieldRequired(contact.fields, 'email'),
+    phone: isFieldRequired(contact.fields, 'phone'),
+    company: isFieldRequired(contact.fields, 'company'),
+    message: isFieldRequired(contact.fields, 'message'),
+  }), [contact.fields])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -72,7 +82,7 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="pt-24">
+    <div className={`pt-24 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
       <section className="py-20 md:py-28">
         <div className="container px-4 md:px-6">
           <div className="max-w-3xl">
@@ -114,9 +124,9 @@ export default function ContactPage() {
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{contact.fields.name}</FormLabel>
+                              <FormLabel><RequiredLabel label={contact.fields.name} required={required.name} /></FormLabel>
                               <FormControl>
-                                <Input placeholder={contact.fields.namePlaceholder} {...field} />
+                                <Input placeholder={contact.fields.namePlaceholder} required={required.name} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -127,9 +137,9 @@ export default function ContactPage() {
                           name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{contact.fields.email}</FormLabel>
+                              <FormLabel><RequiredLabel label={contact.fields.email} required={required.email} /></FormLabel>
                               <FormControl>
-                                <Input placeholder={contact.fields.emailPlaceholder} {...field} />
+                                <Input type="email" placeholder={contact.fields.emailPlaceholder} required={required.email} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -143,9 +153,9 @@ export default function ContactPage() {
                           name="phone"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{contact.fields.phone}</FormLabel>
+                              <FormLabel><RequiredLabel label={contact.fields.phone} required={required.phone} /></FormLabel>
                               <FormControl>
-                                <Input placeholder={contact.fields.phonePlaceholder} {...field} />
+                                <Input placeholder={contact.fields.phonePlaceholder} required={required.phone} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -156,9 +166,9 @@ export default function ContactPage() {
                           name="company"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{contact.fields.company}</FormLabel>
+                              <FormLabel><RequiredLabel label={contact.fields.company} required={required.company} /></FormLabel>
                               <FormControl>
-                                <Input placeholder={contact.fields.companyPlaceholder} {...field} />
+                                <Input placeholder={contact.fields.companyPlaceholder} required={required.company} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -171,11 +181,12 @@ export default function ContactPage() {
                         name="message"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{contact.fields.message}</FormLabel>
+                            <FormLabel><RequiredLabel label={contact.fields.message} required={required.message} /></FormLabel>
                             <FormControl>
                               <Textarea
                                 placeholder={contact.fields.messagePlaceholder}
                                 className="min-h-[120px]"
+                                required={required.message}
                                 {...field}
                               />
                             </FormControl>
@@ -251,15 +262,9 @@ export default function ContactPage() {
                 <div className="mt-8 pt-8 border-t border-border">
                   <h3 className="font-medium mb-4">{contact.labels.follow}</h3>
                   <div className="flex space-x-4">
-                    {contact.info.socialLinks.map((link, index) => {
-                      const Icon = socialIcons[index] || Instagram
-                      return (
-                        <Link key={`${link.name}-${index}`} href={link.href} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
-                          <Icon className="h-5 w-5" />
-                          <span className="sr-only">{link.name}</span>
-                        </Link>
-                      )
-                    })}
+                    {contact.info.socialLinks.map((link, index) => (
+                      <SocialQrButton key={`${link.name}-${index}`} link={link} />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -300,4 +305,58 @@ export default function ContactPage() {
       </section>
     </div>
   )
+}
+
+function RequiredLabel({ label, required }: { label: string; required: boolean }) {
+  return (
+    <>
+      {label}
+      {required && <span className="ml-1 text-destructive">*</span>}
+    </>
+  )
+}
+
+function isFieldRequired(fields: ContactFields, field: ContactFieldName) {
+  return fields[`${field}Required` as keyof ContactFields] === true
+}
+
+function createContactFormSchema(fields: ContactFields) {
+  return z.object({
+    name: createTextSchema(fields, 'name', 2, `${fields.name}至少需要 2 个字符。`),
+    email: createEmailSchema(fields),
+    phone: createTextSchema(fields, 'phone', 1, `请填写${fields.phone}`),
+    company: createTextSchema(fields, 'company', 1, `请填写${fields.company}`),
+    message: createTextSchema(fields, 'message', 10, `${fields.message}至少需要 10 个字符。`),
+  })
+}
+
+function createTextSchema(fields: ContactFields, field: ContactFieldName, minLength: number, minMessage: string) {
+  const required = isFieldRequired(fields, field)
+  const label = fields[field]
+
+  return z.string().trim().superRefine((value, context) => {
+    if (required && value.length === 0) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: `请填写${label}` })
+      return
+    }
+
+    if (value.length > 0 && value.length < minLength) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: minMessage })
+    }
+  })
+}
+
+function createEmailSchema(fields: ContactFields) {
+  const required = isFieldRequired(fields, 'email')
+
+  return z.string().trim().superRefine((value, context) => {
+    if (required && value.length === 0) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: `请填写${fields.email}` })
+      return
+    }
+
+    if (value.length > 0 && !emailPattern.test(value)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: '请输入有效的邮箱地址。' })
+    }
+  })
 }

@@ -10,7 +10,7 @@ import ProjectCard from '@/components/projects/project-card'
 import { useSiteContent } from '@/hooks/use-site-content'
 
 export default function ProjectsPage() {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
   const [activeCategory, setActiveCategory] = useState(content.projectsPage.allCategoryLabel)
 
   const categories = useMemo(
@@ -23,8 +23,8 @@ export default function ProjectsPage() {
     : content.projects.filter(project => project.category === activeCategory)
 
   return (
-    <div className="pt-24">
-      <section className="py-16 md:py-20">
+    <div className={`pt-24 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
+      <section className="py-20 md:py-28">
         <div className="container px-4 md:px-6">
           <div className="max-w-3xl">
             <h1 className="font-playfair text-4xl md:text-5xl font-bold mb-6">

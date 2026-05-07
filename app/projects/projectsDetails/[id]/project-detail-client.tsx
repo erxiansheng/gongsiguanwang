@@ -1,14 +1,26 @@
 "use client"
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useSiteContent } from '@/hooks/use-site-content'
+import { defaultSiteContent } from '@/lib/site-content'
 
 export default function ProjectDetailClient({ id }: { id: string }) {
-  const { content } = useSiteContent()
+  const { content, isLoading } = useSiteContent()
   const project = content.projects.find((item) => item.id === id)
+  const fallbackImage = content.projectsPage.featuredImage || defaultSiteContent.projects[0].image
+  const [imageSrc, setImageSrc] = useState(fallbackImage)
+
+  useEffect(() => {
+    setImageSrc(project?.image?.trim() || fallbackImage)
+  }, [project?.image, fallbackImage])
+
+  if (isLoading) {
+    return <div className="container mx-auto px-4 py-8 mt-20 min-h-screen" />
+  }
 
   if (!project) {
     return (
@@ -29,7 +41,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 mt-20">
+    <div className="container mx-auto px-4 py-8 mt-20 transition-opacity duration-300">
       <div className="max-w-4xl mx-auto">
         <Link
           href="/projects"
@@ -42,10 +54,11 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         <div className="mb-8">
           <div className="relative w-full aspect-[21/9] mb-6 rounded-lg overflow-hidden">
             <Image
-              src={project.image}
+              src={imageSrc}
               alt={project.title}
               fill
               className="object-cover"
+              onError={() => setImageSrc(fallbackImage)}
               priority
             />
           </div>

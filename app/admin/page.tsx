@@ -5,7 +5,7 @@ import { LogOut, RefreshCw, Save, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import ContentEditor from './content-editor'
-import { defaultSiteContent } from '@/lib/site-content'
+import { defaultSiteContent, normalizeSiteContent } from '@/lib/site-content'
 
 interface ContactMessage {
   id: string
@@ -21,7 +21,7 @@ export default function AdminPage() {
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('admin123456')
   const [token, setToken] = useState<string | null>(null)
-  const [draftContent, setDraftContent] = useState<any>(defaultSiteContent)
+  const [draftContent, setDraftContent] = useState<any>(normalizeSiteContent(defaultSiteContent))
   const [status, setStatus] = useState('请登录后编辑站点内容。')
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [isSaving, setIsSaving] = useState(false)
@@ -73,7 +73,7 @@ export default function AdminPage() {
       const response = await fetch('/api/admin/content', { headers: authHeaders, cache: 'no-store' })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '读取内容失败')
-      setDraftContent(result.content || defaultSiteContent)
+      setDraftContent(normalizeSiteContent(result.content || defaultSiteContent))
       setStatus('内容已加载。')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '读取内容失败')
@@ -88,11 +88,11 @@ export default function AdminPage() {
       const response = await fetch('/api/admin/content', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ content: draftContent }),
+        body: JSON.stringify({ content: normalizeSiteContent(draftContent) }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '保存失败')
-      setDraftContent(result.content)
+      setDraftContent(normalizeSiteContent(result.content))
       setStatus('保存成功，前台刷新后会读取最新内容。')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '保存失败，请稍后重试。')

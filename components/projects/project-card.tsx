@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { defaultSiteContent } from '@/lib/site-content'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
@@ -19,11 +20,18 @@ interface ProjectCardProps {
   index?: number
 }
 
+const projectImageFallback = defaultSiteContent.projects[0].image
+
 export default function ProjectCard({ project, index = 0 }: ProjectCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [imageSrc, setImageSrc] = useState(project.image?.trim() || projectImageFallback)
+
+  useEffect(() => {
+    setImageSrc(project.image?.trim() || projectImageFallback)
+  }, [project.image])
   
   return (
-    <Link href={`/projects/projectsDetails/${project.id}`}>
+    <Link href={`/projects/projectsDetails?id=${encodeURIComponent(project.id)}`}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -34,9 +42,10 @@ export default function ProjectCard({ project, index = 0 }: ProjectCardProps) {
       >
         <div className="relative aspect-[16/10] overflow-hidden">
           <Image
-            src={project.image}
+            src={imageSrc}
             alt={project.title}
             fill
+            onError={() => setImageSrc(projectImageFallback)}
             className={cn(
               "object-cover transition-transform duration-500",
               isHovered ? "scale-105" : "scale-100"
