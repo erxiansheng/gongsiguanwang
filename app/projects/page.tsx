@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
@@ -8,19 +8,30 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import ProjectCard from '@/components/projects/project-card'
 import { useSiteContent } from '@/hooks/use-site-content'
+import { normalizeCategoryLabel } from '@/lib/site-content'
 
 export default function ProjectsPage() {
   const { content, isLoading } = useSiteContent()
   const [activeCategory, setActiveCategory] = useState(content.projectsPage.allCategoryLabel)
+  const allCategoryLabel = content.projectsPage.allCategoryLabel
 
   const categories = useMemo(
-    () => [content.projectsPage.allCategoryLabel, ...Array.from(new Set(content.projects.map(project => project.category)))],
-    [content.projects, content.projectsPage.allCategoryLabel]
+    () => [allCategoryLabel, ...content.projectCategories],
+    [allCategoryLabel, content.projectCategories]
   )
 
-  const filteredProjects = activeCategory === content.projectsPage.allCategoryLabel
+  useEffect(() => {
+    const activeCategoryKey = normalizeCategoryLabel(activeCategory)
+    const hasCategory = categories.some((category) => normalizeCategoryLabel(category) === activeCategoryKey)
+    if (!hasCategory || activeCategoryKey === normalizeCategoryLabel(content.projectsPage.allCategoryLabel)) {
+      setActiveCategory(content.projectsPage.allCategoryLabel)
+    }
+  }, [activeCategory, categories, content.projectsPage.allCategoryLabel])
+
+  const activeCategoryKey = normalizeCategoryLabel(activeCategory)
+  const filteredProjects = activeCategoryKey === normalizeCategoryLabel(content.projectsPage.allCategoryLabel)
     ? content.projects
-    : content.projects.filter(project => project.category === activeCategory)
+    : content.projects.filter(project => normalizeCategoryLabel(project.category) === activeCategoryKey)
 
   return (
     <div className={`pt-24 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
@@ -57,11 +68,17 @@ export default function ProjectsPage() {
 
       <section className="pb-24">
         <div className="container px-4 md:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProjects.map((project, index) => (
-              <ProjectCard key={project.id} project={project} index={index} />
-            ))}
-          </div>
+          {filteredProjects.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredProjects.map((project, index) => (
+                <ProjectCard key={project.id} project={project} index={index} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 px-6 py-12 text-center text-muted-foreground">
+              当前分类暂无项目，请在后台为项目选择对应分类后再查看。
+            </div>
+          )}
         </div>
       </section>
 

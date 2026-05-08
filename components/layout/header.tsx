@@ -24,10 +24,22 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [mobileMenuOpen])
+
   return (
     <header
       className={cn(
-        'fixed top-0 w-full z-50 transition-all duration-300',
+        'fixed top-0 w-full transition-all duration-300',
+        mobileMenuOpen ? 'z-[100]' : 'z-50',
         isScrolled
           ? 'bg-background/80 backdrop-blur-sm py-4 shadow-sm border-b border-border'
           : 'bg-transparent py-6',
@@ -89,7 +101,7 @@ export default function Header() {
       </div>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-background">
+        <div className="fixed inset-0 z-[110] min-h-dvh overflow-y-auto bg-background text-foreground shadow-2xl">
           <div className="container mx-auto px-4 py-6">
             <div className="flex items-center justify-between mb-8">
               <Link href="/" className="flex items-center space-x-2" onClick={() => setMobileMenuOpen(false)}>

@@ -128,6 +128,7 @@ export interface SiteContent {
     missingTitle: string
     missingDescription: string
   }
+  projectCategories: string[]
   about: {
     heroTitle: string
     heroSubtitle: string
@@ -302,6 +303,7 @@ export const defaultSiteContent: SiteContent = {
     missingTitle: '未找到这个项目',
     missingDescription: '该项目可能已下线，或者后台内容尚未同步。'
   },
+  projectCategories: ['网站与应用', '品牌系统', '移动体验', '数字增长'],
   about: {
     heroTitle: '用清晰目标驱动每一次数字创作',
     heroSubtitle: '我们是一支由策略、设计、开发和内容伙伴组成的小团队，专注把复杂想法变成可被用户理解和使用的数字体验。',
@@ -517,6 +519,10 @@ export const defaultSiteContent: SiteContent = {
 
 type PlainObject = Record<string, unknown>
 
+export function normalizeCategoryLabel(category: unknown): string {
+  return String(category ?? '').trim().replace(/\s+/g, ' ')
+}
+
 function isPlainObject(value: unknown): value is PlainObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
@@ -542,6 +548,33 @@ function normalizePartners(partners: Partner[]): Partner[] {
   })
 }
 
+function normalizeProjects(projects: Project[]): Project[] {
+  return projects.map((project, index) => {
+    const fallback = defaultSiteContent.projects[index] || defaultSiteContent.projects[0]
+    return {
+      ...project,
+      id: project.id || fallback.id,
+      title: project.title || fallback.title,
+      category: normalizeCategoryLabel(project.category) || fallback.category,
+      description: project.description || fallback.description,
+      image: project.image || fallback.image,
+      tags: Array.isArray(project.tags) ? project.tags : fallback.tags,
+      detailIntro: project.detailIntro || fallback.detailIntro,
+      detailSections: Array.isArray(project.detailSections) ? project.detailSections : fallback.detailSections,
+      detailConclusion: project.detailConclusion || fallback.detailConclusion
+    }
+  })
+}
+
+function collectProjectCategories(projects: Project[], categories: unknown[]): string[] {
+  const names = [
+    ...categories,
+    ...projects.map((project) => project.category)
+  ].map(normalizeCategoryLabel).filter(Boolean)
+
+  return Array.from(new Map(names.map((name) => [name, name])).values())
+}
+
 function normalizeSocialLinks(links: SocialLink[]): SocialLink[] {
   const defaults = defaultSiteContent.contact.info.socialLinks
   const source = Array.isArray(links) && links.length > 0 ? links : defaults
@@ -563,9 +596,14 @@ function normalizeSocialLinks(links: SocialLink[]): SocialLink[] {
 export function normalizeSiteContent(content: unknown): SiteContent {
   const merged = mergeContentValue(defaultSiteContent, content)
   const fields = merged.contact.fields
+  const source = isPlainObject(content) ? content : {}
+  const sourceProjectCategories = Array.isArray(source.projectCategories) ? source.projectCategories : []
+  const projects = normalizeProjects(merged.projects)
 
   return {
     ...merged,
+    projectCategories: collectProjectCategories(projects, sourceProjectCategories),
+    projects,
     partners: normalizePartners(merged.partners),
     contact: {
       ...merged.contact,

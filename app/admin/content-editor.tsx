@@ -1,10 +1,26 @@
 "use client"
 
-import { Plus, Trash2 } from 'lucide-react'
+import { Edit, Plus, Trash2 } from 'lucide-react'
 import { ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { defaultSiteContent, normalizeCategoryLabel } from '@/lib/site-content'
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 type Path = Array<string | number>
@@ -19,6 +35,7 @@ const SECTIONS = [
   { key: 'navigation', label: '导航' },
   { key: 'home', label: '首页' },
   { key: 'projectsPage', label: '项目页' },
+  { key: 'projectCategories', label: '项目分类' },
   { key: 'projectDetails', label: '详情页' },
   { key: 'projects', label: '项目' },
   { key: 'about', label: '关于' },
@@ -78,6 +95,7 @@ const LABELS: Record<string, string> = {
   processSubtitle: '流程说明',
   processSteps: '流程步骤',
   number: '编号',
+  projectCategories: '项目分类',
   projectDetails: '详情页',
   backLabel: '返回文字',
   missingTitle: '缺失标题',
@@ -160,13 +178,20 @@ const LONG_TEXT_KEYS = new Set([
   'messagePlaceholder', 'answer'
 ])
 
+const OBJECT_ARRAY_KEYS = new Set([
+  'navigation', 'services', 'testimonials', 'processSteps', 'projects', 'detailSections', 'milestones',
+  'values', 'team', 'approachItems', 'benefits', 'partners', 'faqs', 'socialLinks'
+])
+
 export default function ContentEditor({ content, onChange }: ContentEditorProps) {
   const availableSections = SECTIONS.filter((section) => section.key in content)
   const [activeKey, setActiveKey] = useState(availableSections[0]?.key || 'site')
   const currentKey = activeKey in content ? activeKey : availableSections[0]?.key
+  const projectCategories = getProjectCategories(content)
 
   function update(path: Path, value: JsonValue) {
-    onChange(setAtPath(content, path, value) as Record<string, JsonValue>)
+    const nextContent = setAtPath(content, path, value) as Record<string, JsonValue>
+    onChange(syncProjectCategories(applyProjectCategoryRename(content, nextContent, path, value)))
   }
 
   return (
@@ -192,6 +217,7 @@ export default function ContentEditor({ content, onChange }: ContentEditorProps)
             value={content[currentKey]}
             path={[currentKey]}
             onChange={update}
+            projectCategories={projectCategories}
           />
         </div>
       )}
@@ -199,13 +225,13 @@ export default function ContentEditor({ content, onChange }: ContentEditorProps)
   )
 }
 
-function EditorField({ fieldKey, value, path, onChange }: { fieldKey: string; value: JsonValue; path: Path; onChange: (path: Path, value: JsonValue) => void }) {
+function EditorField({ fieldKey, value, path, onChange, projectCategories }: { fieldKey: string; value: JsonValue; path: Path; onChange: (path: Path, value: JsonValue) => void; projectCategories: string[] }) {
   if (Array.isArray(value)) {
-    return <ArrayEditor fieldKey={fieldKey} value={value} path={path} onChange={onChange} />
+    return <ArrayEditor fieldKey={fieldKey} value={value} path={path} onChange={onChange} projectCategories={projectCategories} />
   }
 
   if (value && typeof value === 'object') {
-    return <ObjectEditor fieldKey={fieldKey} value={value as Record<string, JsonValue>} path={path} onChange={onChange} />
+    return <ObjectEditor fieldKey={fieldKey} value={value as Record<string, JsonValue>} path={path} onChange={onChange} projectCategories={projectCategories} />
   }
 
   if (typeof value === 'boolean') {
@@ -228,6 +254,16 @@ function EditorField({ fieldKey, value, path, onChange }: { fieldKey: string; va
   const textValue = value === null ? '' : String(value)
   const useTextarea = LONG_TEXT_KEYS.has(fieldKey) || textValue.length > 80
 
+  if (fieldKey === 'category' && projectCategories.length > 0) {
+    return (
+      <CategorySelect
+        value={textValue}
+        categories={projectCategories}
+        onChange={(category) => onChange(path, category)}
+      />
+    )
+  }
+
   return (
     <FieldShell fieldKey={fieldKey}>
       {useTextarea ? (
@@ -239,7 +275,7 @@ function EditorField({ fieldKey, value, path, onChange }: { fieldKey: string; va
   )
 }
 
-function ObjectEditor({ fieldKey, value, path, onChange }: { fieldKey: string; value: Record<string, JsonValue>; path: Path; onChange: (path: Path, value: JsonValue) => void }) {
+function ObjectEditor({ fieldKey, value, path, onChange, projectCategories }: { fieldKey: string; value: Record<string, JsonValue>; path: Path; onChange: (path: Path, value: JsonValue) => void; projectCategories: string[] }) {
   const entries = Object.entries(value).filter(([key]) => key !== 'updatedAt')
 
   return (
@@ -247,23 +283,32 @@ function ObjectEditor({ fieldKey, value, path, onChange }: { fieldKey: string; v
       <h3 className="text-lg font-bold">{labelFor(fieldKey)}</h3>
       <div className="grid grid-cols-1 gap-4">
         {entries.map(([key, item]) => (
-          <EditorField key={key} fieldKey={key} value={item} path={[...path, key]} onChange={onChange} />
+          <EditorField key={key} fieldKey={key} value={item} path={[...path, key]} onChange={onChange} projectCategories={projectCategories} />
         ))}
       </div>
     </div>
   )
 }
 
-function ArrayEditor({ fieldKey, value, path, onChange }: { fieldKey: string; value: JsonValue[]; path: Path; onChange: (path: Path, value: JsonValue) => void }) {
-  const isObjectArray = value.some((item) => item && typeof item === 'object' && !Array.isArray(item))
+function ArrayEditor({ fieldKey, value, path, onChange, projectCategories }: { fieldKey: string; value: JsonValue[]; path: Path; onChange: (path: Path, value: JsonValue) => void; projectCategories: string[] }) {
+  const isObjectArray = OBJECT_ARRAY_KEYS.has(fieldKey) || value.some((item) => item && typeof item === 'object' && !Array.isArray(item))
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const editingItem = editingIndex === null ? null : value[editingIndex]
 
   function addItem() {
-    const template = value[0]
-    onChange(path, [...value, createEmptyLike(template)])
+    const template = value[0] ?? getArrayTemplate(fieldKey)
+    const nextItem = fieldKey === 'projectCategories'
+      ? createNewCategoryName(projectCategories)
+      : createEmptyLike(template)
+    onChange(path, [...value, nextItem])
+    setEditingIndex(value.length)
   }
 
   function removeItem(index: number) {
     onChange(path, value.filter((_, itemIndex) => itemIndex !== index))
+    if (editingIndex === null) return
+    if (editingIndex === index) setEditingIndex(null)
+    if (editingIndex > index) setEditingIndex(editingIndex - 1)
   }
 
   if (!isObjectArray) {
@@ -287,17 +332,61 @@ function ArrayEditor({ fieldKey, value, path, onChange }: { fieldKey: string; va
   return (
     <div className="space-y-4 rounded-md border border-border p-4">
       <ArrayHeader fieldKey={fieldKey} onAdd={addItem} />
-      {value.map((item, index) => (
-        <div key={index} className="rounded-md border border-border bg-card p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h4 className="font-medium">{getItemTitle(item, index)}</h4>
-            <Button type="button" variant="outline" size="sm" onClick={() => removeItem(index)}>
-              <Trash2 className="mr-2 h-4 w-4" />删除
-            </Button>
-          </div>
-          <EditorField fieldKey={`${labelFor(fieldKey)} ${index + 1}`} value={item} path={[...path, index]} onChange={onChange} />
+      {value.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          暂无内容，点击新增开始添加。
         </div>
-      ))}
+      ) : (
+        <div className="overflow-hidden rounded-md border border-border">
+          <div className="grid grid-cols-[1fr_auto] gap-3 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground md:grid-cols-[minmax(180px,1fr)_180px_auto]">
+            <span>名称</span>
+            <span className="hidden md:block">摘要</span>
+            <span className="text-right">操作</span>
+          </div>
+          {value.map((item, index) => (
+            <div key={index} className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-border px-4 py-3 md:grid-cols-[minmax(180px,1fr)_180px_auto]">
+              <div className="min-w-0">
+                <div className="truncate font-medium">{getItemTitle(item, index)}</div>
+                <div className="mt-1 flex flex-wrap gap-2 md:hidden">
+                  {getItemBadges(item).map((badge) => (
+                    <Badge key={badge} variant="secondary" className="max-w-full truncate">{badge}</Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="hidden min-w-0 flex-wrap gap-2 md:flex">
+                {getItemBadges(item).map((badge) => (
+                  <Badge key={badge} variant="secondary" className="max-w-full truncate">{badge}</Badge>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditingIndex(index)}>
+                  <Edit className="mr-2 h-4 w-4" />编辑
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => removeItem(index)}>
+                  <Trash2 className="mr-2 h-4 w-4" />删除
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <Dialog open={editingIndex !== null} onOpenChange={(open) => !open && setEditingIndex(null)}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingIndex === null ? labelFor(fieldKey) : getItemTitle(editingItem, editingIndex)}</DialogTitle>
+            <DialogDescription>编辑完成后关闭弹窗，页面上的保存内容按钮会写入最新数据。</DialogDescription>
+          </DialogHeader>
+          {editingIndex !== null && editingItem !== undefined && (
+            <EditorField
+              fieldKey={`${labelFor(fieldKey)} ${editingIndex + 1}`}
+              value={editingItem}
+              path={[...path, editingIndex]}
+              onChange={onChange}
+              projectCategories={projectCategories}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -322,8 +411,74 @@ function FieldShell({ fieldKey, children }: { fieldKey: string; children: ReactN
   )
 }
 
+function CategorySelect({ value, categories, onChange }: { value: string; categories: string[]; onChange: (value: string) => void }) {
+  const normalizedValue = normalizeCategoryLabel(value)
+  const options = categories.some((category) => normalizeCategoryLabel(category) === normalizedValue)
+    ? categories
+    : [normalizedValue, ...categories].filter(Boolean)
+
+  return (
+    <FieldShell fieldKey="category">
+      <Select value={normalizedValue} onValueChange={onChange}>
+        <SelectTrigger>
+          <SelectValue placeholder="选择分类" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((category) => (
+            <SelectItem key={category} value={category}>{category}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </FieldShell>
+  )
+}
+
 function labelFor(key: string) {
   return LABELS[key] || key
+}
+
+function getProjectCategories(content: Record<string, JsonValue>): string[] {
+  const categoryValues = Array.isArray(content.projectCategories) ? content.projectCategories : []
+  const projectValues = Array.isArray(content.projects)
+    ? content.projects.map((project) => {
+      if (!project || typeof project !== 'object' || Array.isArray(project)) return ''
+      return normalizeCategoryLabel((project as Record<string, JsonValue>).category)
+    })
+    : []
+
+  return uniqueCategories([...categoryValues, ...projectValues])
+}
+
+function syncProjectCategories(content: Record<string, JsonValue>): Record<string, JsonValue> {
+  return {
+    ...content,
+    projectCategories: getProjectCategories(content)
+  }
+}
+
+function applyProjectCategoryRename(previousContent: Record<string, JsonValue>, nextContent: Record<string, JsonValue>, path: Path, value: JsonValue): Record<string, JsonValue> {
+  if (path[0] !== 'projectCategories' || path.length !== 2 || typeof path[1] !== 'number') return nextContent
+
+  const previousCategories = Array.isArray(previousContent.projectCategories) ? previousContent.projectCategories : []
+  const previousName = normalizeCategoryLabel(previousCategories[path[1]])
+  const nextName = normalizeCategoryLabel(value)
+  if (!previousName || !nextName || previousName === nextName || !Array.isArray(nextContent.projects)) return nextContent
+
+  return {
+    ...nextContent,
+    projects: nextContent.projects.map((project) => {
+      if (!project || typeof project !== 'object' || Array.isArray(project)) return project
+      const record = project as Record<string, JsonValue>
+      return normalizeCategoryLabel(record.category) === previousName
+        ? { ...record, category: nextName }
+        : project
+    })
+  }
+}
+
+function uniqueCategories(categories: JsonValue[]): string[] {
+  const normalized = categories.map(normalizeCategoryLabel).filter(Boolean)
+  return Array.from(new Map(normalized.map((category) => [category, category])).values())
 }
 
 function getItemTitle(item: JsonValue, index: number) {
@@ -333,6 +488,46 @@ function getItemTitle(item: JsonValue, index: number) {
     if (title) return String(title)
   }
   return `第 ${index + 1} 项`
+}
+
+function getItemBadges(item: JsonValue): string[] {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return []
+  const record = item as Record<string, JsonValue>
+  const badges = [record.category, record.title, record.company, record.href, record.year]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean)
+
+  return Array.from(new Set(badges)).slice(0, 2)
+}
+
+function createNewCategoryName(categories: string[]): string {
+  const base = '新分类'
+  if (!categories.includes(base)) return base
+
+  let index = 2
+  while (categories.includes(`${base}${index}`)) index += 1
+  return `${base}${index}`
+}
+
+function getArrayTemplate(fieldKey: string): JsonValue | undefined {
+  const templates: Record<string, JsonValue | undefined> = {
+    navigation: defaultSiteContent.navigation[0] as unknown as JsonValue,
+    services: defaultSiteContent.home.services[0] as unknown as JsonValue,
+    testimonials: defaultSiteContent.home.testimonials[0] as unknown as JsonValue,
+    processSteps: defaultSiteContent.projectsPage.processSteps[0] as unknown as JsonValue,
+    projects: defaultSiteContent.projects[0] as unknown as JsonValue,
+    detailSections: defaultSiteContent.projects[0].detailSections[0] as unknown as JsonValue,
+    milestones: defaultSiteContent.about.milestones[0] as unknown as JsonValue,
+    values: defaultSiteContent.about.values[0] as unknown as JsonValue,
+    team: defaultSiteContent.about.team[0] as unknown as JsonValue,
+    approachItems: defaultSiteContent.partnersPage.approachItems[0] as unknown as JsonValue,
+    benefits: defaultSiteContent.partnersPage.benefits[0] as unknown as JsonValue,
+    partners: defaultSiteContent.partners[0] as unknown as JsonValue,
+    faqs: defaultSiteContent.contact.faqs[0] as unknown as JsonValue,
+    socialLinks: defaultSiteContent.contact.info.socialLinks[0] as unknown as JsonValue
+  }
+
+  return templates[fieldKey]
 }
 
 function createEmptyLike(value: JsonValue | undefined): JsonValue {
