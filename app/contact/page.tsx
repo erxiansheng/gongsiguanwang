@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea'
 import SocialQrButton from '@/components/social-qr-button'
 import { useSiteContent } from '@/hooks/use-site-content'
 import type { SiteContent } from '@/lib/site-content'
+import { apiUrl } from '@/lib/api-config'
 
 type ContactFields = SiteContent['contact']['fields']
 type ContactFieldName = 'name' | 'email' | 'phone' | 'company' | 'message'
@@ -32,7 +33,7 @@ interface FormValues {
   message: string
 }
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 
 export default function ContactPage() {
   const { content, isLoading } = useSiteContent()
@@ -65,7 +66,7 @@ export default function ContactPage() {
     setSubmitError(null)
 
     try {
-      const response = await fetch('/api/contact', {
+      const response = await fetch(apiUrl('/contact'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
@@ -139,7 +140,7 @@ export default function ContactPage() {
                             <FormItem>
                               <FormLabel><RequiredLabel label={contact.fields.email} required={required.email} /></FormLabel>
                               <FormControl>
-                                <Input type="email" placeholder={contact.fields.emailPlaceholder} required={required.email} {...field} />
+                                <Input placeholder={contact.fields.emailPlaceholder} required={required.email} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -323,7 +324,7 @@ function isFieldRequired(fields: ContactFields, field: ContactFieldName) {
 function createContactFormSchema(fields: ContactFields) {
   return z.object({
     name: createTextSchema(fields, 'name', 2, `${fields.name}至少需要 2 个字符。`),
-    email: createEmailSchema(fields),
+    email: createTextSchema(fields, 'email', 1, `请填写${fields.email}`),
     phone: createTextSchema(fields, 'phone', 1, `请填写${fields.phone}`),
     company: createTextSchema(fields, 'company', 1, `请填写${fields.company}`),
     message: createTextSchema(fields, 'message', 10, `${fields.message}至少需要 10 个字符。`),
@@ -345,18 +346,4 @@ function createTextSchema(fields: ContactFields, field: ContactFieldName, minLen
     }
   })
 }
-
-function createEmailSchema(fields: ContactFields) {
-  const required = isFieldRequired(fields, 'email')
-
-  return z.string().trim().superRefine((value, context) => {
-    if (required && value.length === 0) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: `请填写${fields.email}` })
-      return
-    }
-
-    if (value.length > 0 && !emailPattern.test(value)) {
-      context.addIssue({ code: z.ZodIssueCode.custom, message: '请输入有效的邮箱地址。' })
-    }
-  })
-}
+

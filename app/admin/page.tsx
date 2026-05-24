@@ -1,11 +1,12 @@
 "use client"
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { LogOut, RefreshCw, Save, Upload } from 'lucide-react'
+import { LogOut, RefreshCw, Save, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import ContentEditor from './content-editor'
 import { defaultSiteContent, normalizeSiteContent } from '@/lib/site-content'
+import { apiUrl } from '@/lib/api-config'
 
 interface ContactMessage {
   id: string
@@ -45,7 +46,7 @@ export default function AdminPage() {
     event.preventDefault()
     setStatus('正在登录...')
     try {
-      const response = await fetch('/api/admin/login', {
+      const response = await fetch(apiUrl('/admin/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -70,7 +71,7 @@ export default function AdminPage() {
     if (!token) return
     setStatus('正在读取内容...')
     try {
-      const response = await fetch('/api/admin/content', { headers: authHeaders, cache: 'no-store' })
+      const response = await fetch(apiUrl('/admin/content'), { headers: authHeaders, cache: 'no-store' })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '读取内容失败')
       setDraftContent(normalizeSiteContent(result.content || defaultSiteContent))
@@ -85,7 +86,7 @@ export default function AdminPage() {
     setIsSaving(true)
     setStatus('正在保存内容...')
     try {
-      const response = await fetch('/api/admin/content', {
+      const response = await fetch(apiUrl('/admin/content'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ content: normalizeSiteContent(draftContent) }),
@@ -126,7 +127,7 @@ export default function AdminPage() {
   async function uploadImageDirectly(file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await fetch('/api/admin/upload', {
+    const response = await fetch(apiUrl('/admin/upload'), {
       method: 'POST',
       headers: authHeaders,
       body: formData,
@@ -156,7 +157,7 @@ export default function AdminPage() {
       formData.append('complete', String(index === totalChunks - 1))
       setStatus(`正在上传图片分片 ${index + 1}/${totalChunks}...`)
 
-      const response = await fetch('/api/admin/upload', {
+      const response = await fetch(apiUrl('/admin/upload'), {
         method: 'POST',
         headers: authHeaders,
         body: formData,
@@ -181,7 +182,7 @@ export default function AdminPage() {
       const failed: string[] = []
 
       while (remaining > 0) {
-        const response = await fetch('/api/admin/seed-images', {
+        const response = await fetch(apiUrl('/admin/seed-images'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({ content: currentContent, limit: 4 }),
@@ -213,11 +214,32 @@ export default function AdminPage() {
   async function loadMessages() {
     if (!token) return
     try {
-      const response = await fetch('/api/admin/messages', { headers: authHeaders, cache: 'no-store' })
+      const response = await fetch(apiUrl('/admin/messages'), { headers: authHeaders, cache: 'no-store' })
       const result = await response.json()
       if (response.ok) setMessages(result.messages || [])
     } catch {
       setMessages([])
+    }
+  }
+
+  async function deleteMessage(id: string) {
+    if (!token) return
+    if (!confirm('确定要删除这条留言吗？')) return
+    try {
+      const response = await fetch(apiUrl('/admin/messages'), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ id }),
+      })
+      if (response.ok) {
+        setMessages((prev) => prev.filter((m) => m.id !== id))
+        setStatus('留言已删除。')
+      } else {
+        const result = await response.json().catch(() => ({}))
+        setStatus(result.error || '删除失败')
+      }
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '删除失败')
     }
   }
 
@@ -298,9 +320,21 @@ export default function AdminPage() {
                 {messages.length === 0 && <p className="text-sm text-muted-foreground">暂无留言。</p>}
                 {messages.map((message) => (
                   <div key={message.id} className="rounded-md border border-border p-4 text-sm">
-                    <div className="font-medium">{message.name}</div>
-                    <div className="text-muted-foreground">{message.email}</div>
-                    {message.phone && <div className="text-muted-foreground">{message.phone}</div>}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-medium">{message.name}</div>
+                        <div className="text-muted-foreground">{message.email}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteMessage(message.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    {message.phone && <div className="text-muted-foreground mt-1">{message.phone}</div>}
                     {message.company && <div className="text-muted-foreground">{message.company}</div>}
                     <p className="mt-3 whitespace-pre-wrap">{message.message}</p>
                     <p className="mt-3 text-xs text-muted-foreground">{new Date(message.createdAt).toLocaleString('zh-CN')}</p>

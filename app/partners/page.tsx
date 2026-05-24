@@ -1,16 +1,141 @@
 "use client"
 
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, CircleDollarSign, Compass, Handshake, Lightbulb, MessageCircle, Network } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSiteContent } from '@/hooks/use-site-content'
+import type { Partner } from '@/lib/site-content'
 
 const benefitIcons = [Compass, Lightbulb, Handshake, CircleDollarSign, MessageCircle, Network]
+
+interface CategoryGroup {
+  category: string
+  order: number
+  partners: Partner[]
+}
+
+function groupPartnersByCategory(partners: Partner[]): CategoryGroup[] {
+  const map = new Map<string, CategoryGroup>()
+
+  for (const partner of partners) {
+    const category = partner.category || '未分类'
+    const order = typeof partner.categoryOrder === 'number' ? partner.categoryOrder : 0
+
+    if (!map.has(category)) {
+      map.set(category, { category, order, partners: [] })
+    }
+    map.get(category)!.partners.push(partner)
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.order - b.order)
+}
+
+function ScrollingRow({ partners }: { partners: Partner[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [isPaused, setIsPaused] = useState(false)
+  const animationRef = useRef<number>(0)
+  const scrollPositionRef = useRef(0)
+  const needsScroll = partners.length > 4
+
+  // For scrolling, duplicate items to create seamless loop
+  const displayPartners = useMemo(() => {
+    if (!needsScroll) return partners
+    // Triple the items to ensure smooth infinite scroll
+    return [...partners, ...partners, ...partners]
+  }, [partners, needsScroll])
+
+  const animate = useCallback(() => {
+    if (!scrollRef.current || isPaused || !needsScroll) return
+
+    scrollPositionRef.current += 0.5
+    const singleSetWidth = scrollRef.current.scrollWidth / 3
+
+    if (scrollPositionRef.current >= singleSetWidth) {
+      scrollPositionRef.current -= singleSetWidth
+    }
+
+    scrollRef.current.scrollLeft = scrollPositionRef.current
+    animationRef.current = requestAnimationFrame(animate)
+  }, [isPaused, needsScroll])
+
+  useEffect(() => {
+    if (!needsScroll) return
+
+    animationRef.current = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(animationRef.current)
+  }, [animate, needsScroll])
+
+  const handleMouseEnter = () => {
+    setIsPaused(true)
+    cancelAnimationFrame(animationRef.current)
+  }
+
+  const handleMouseLeave = () => {
+    setIsPaused(false)
+  }
+
+  if (!needsScroll) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {partners.map((partner, index) => (
+          <PartnerCard key={`${partner.name}-${index}`} partner={partner} index={index} />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={scrollRef}
+      className="flex gap-6 overflow-hidden"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{ scrollBehavior: 'auto' }}
+    >
+      {displayPartners.map((partner, index) => (
+        <div
+          key={`${partner.name}-${index}`}
+          className="flex-shrink-0"
+          style={{ width: 'calc((100% - 4.5rem) / 4)' }}
+        >
+          <PartnerCard partner={partner} index={index} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function PartnerCard({ partner, index }: { partner: Partner; index: number }) {
+  return (
+    <div className="overflow-hidden bg-card rounded-lg border border-border hover:border-primary/50 transition-all duration-300 group">
+      <div className="relative h-48 overflow-hidden md:h-56">
+        <Image
+          src={partner.logo}
+          alt={partner.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          priority={index < 4}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
+      </div>
+      <div className="p-4">
+        <h3 className="text-lg font-bold">{partner.name}</h3>
+      </div>
+    </div>
+  )
+}
 
 export default function PartnersPage() {
   const { content, isLoading } = useSiteContent()
   const page = content.partnersPage
+
+  const categoryGroups = useMemo(
+    () => groupPartnersByCategory(content.partners),
+    [content.partners]
+  )
 
   return (
     <div className={`pt-24 transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
@@ -29,23 +154,14 @@ export default function PartnersPage() {
 
       <section className="pb-24">
         <div className="container px-4 md:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {content.partners.map((partner, index) => (
-              <div key={`${partner.name}-${index}`} className="overflow-hidden bg-card rounded-lg border border-border hover:border-primary/50 transition-all duration-300">
-                <div className="relative h-64 overflow-hidden md:h-72">
-                  <Image
-                    src={partner.logo}
-                    alt={partner.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover"
-                    priority={index < 3}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent" />
+          <div className="space-y-12">
+            {categoryGroups.map((group) => (
+              <div key={group.category}>
+                <div className="flex items-center gap-4 mb-6">
+                  <h2 className="text-2xl font-bold whitespace-nowrap">{group.category}</h2>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
-                <div className="p-5">
-                  <h3 className="text-xl font-bold">{partner.name}</h3>
-                </div>
+                <ScrollingRow partners={group.partners} />
               </div>
             ))}
           </div>

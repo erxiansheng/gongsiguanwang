@@ -131,6 +131,7 @@ const LABELS: Record<string, string> = {
   benefits: '合作收益',
   partners: '合作伙伴',
   logo: '标志图片',
+  categoryOrder: '分类排序',
   testimonial: '伙伴评价',
   contact: '联系页',
   formTitle: '表单标题',

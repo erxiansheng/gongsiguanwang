@@ -33,6 +33,8 @@ export interface Person {
 export interface Partner {
   name: string
   logo: string
+  category: string
+  categoryOrder: number
 }
 
 export interface Service {
@@ -422,12 +424,12 @@ export const defaultSiteContent: SiteContent = {
     ]
   },
   partners: [
-    { name: '辰星科技', logo: 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
-    { name: '绿境计划', logo: 'https://images.pexels.com/photos/3182812/pexels-photo-3182812.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
-    { name: '城居造物', logo: 'https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
-    { name: '脉冲传媒', logo: 'https://images.pexels.com/photos/3182781/pexels-photo-3182781.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
-    { name: '峰汇金融', logo: 'https://images.pexels.com/photos/3183183/pexels-photo-3183183.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' },
-    { name: '远景健康', logo: 'https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2' }
+    { name: '辰星科技', logo: 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', category: '科技合作', categoryOrder: 1 },
+    { name: '绿境计划', logo: 'https://images.pexels.com/photos/3182812/pexels-photo-3182812.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', category: '科技合作', categoryOrder: 1 },
+    { name: '城居造物', logo: 'https://images.pexels.com/photos/3184418/pexels-photo-3184418.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', category: '品牌合作', categoryOrder: 2 },
+    { name: '脉冲传媒', logo: 'https://images.pexels.com/photos/3182781/pexels-photo-3182781.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', category: '品牌合作', categoryOrder: 2 },
+    { name: '峰汇金融', logo: 'https://images.pexels.com/photos/3183183/pexels-photo-3183183.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', category: '战略合作', categoryOrder: 3 },
+    { name: '远景健康', logo: 'https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1600&h=1000&dpr=2', category: '战略合作', categoryOrder: 3 }
   ],
   projects: [
     {
@@ -543,7 +545,9 @@ function normalizePartners(partners: Partner[]): Partner[] {
     const fallback = defaultSiteContent.partners[index] || defaultSiteContent.partners[0]
     return {
       name: partner.name || fallback.name,
-      logo: partner.logo || fallback.logo
+      logo: partner.logo || fallback.logo,
+      category: partner.category || fallback.category || '未分类',
+      categoryOrder: typeof partner.categoryOrder === 'number' ? partner.categoryOrder : (fallback.categoryOrder ?? 0)
     }
   })
 }

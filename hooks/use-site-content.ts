@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { defaultSiteContent, normalizeSiteContent, SiteContent } from '@/lib/site-content'
+import { apiUrl } from '@/lib/api-config'
 
 export function useSiteContent() {
   const [content, setContent] = useState<SiteContent | null>(null)
@@ -13,7 +14,7 @@ export function useSiteContent() {
 
     async function loadContent() {
       try {
-        const response = await fetch('/api/content', { cache: 'no-store' })
+        const response = await fetch(apiUrl('/content'), { cache: 'no-store' })
         if (!response.ok) throw new Error('内容接口暂时不可用')
         const data = await response.json()
         if (!cancelled && data?.content) {

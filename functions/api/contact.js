@@ -15,9 +15,7 @@ function cleanText(value, maxLength) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength)
 }
 
-function isEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-}
+
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -36,7 +34,7 @@ export async function onRequestPost({ request, env }) {
     if (required.name && name.length === 0) return error(`请填写${labels.name}`)
     if (name.length > 0 && name.length < 2) return error(`${labels.name}至少需要 2 个字符`)
     if (required.email && email.length === 0) return error(`请填写${labels.email}`)
-    if (email.length > 0 && !isEmail(email)) return error(`请填写有效${labels.email}`)
+
     if (required.phone && phone.length === 0) return error(`请填写${labels.phone}`)
     if (required.company && company.length === 0) return error(`请填写${labels.company}`)
     if (required.message && message.length === 0) return error(`请填写${labels.message}`)
