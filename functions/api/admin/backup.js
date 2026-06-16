@@ -7,6 +7,7 @@ const BACKUP_KEYS = [
   'posts:index',
   'categories',
   'images:index',
+  'notification:smtp',
   'navlinks',
   'nav:links',
   'comments:index'

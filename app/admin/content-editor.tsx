@@ -1,7 +1,7 @@
 "use client"
 
-import { Edit, Plus, Trash2 } from 'lucide-react'
-import { ReactNode, useState } from 'react'
+import { Edit, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { DragEvent, ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -294,6 +294,7 @@ function ObjectEditor({ fieldKey, value, path, onChange, projectCategories }: { 
 function ArrayEditor({ fieldKey, value, path, onChange, projectCategories }: { fieldKey: string; value: JsonValue[]; path: Path; onChange: (path: Path, value: JsonValue) => void; projectCategories: string[] }) {
   const isObjectArray = OBJECT_ARRAY_KEYS.has(fieldKey) || value.some((item) => item && typeof item === 'object' && !Array.isArray(item))
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
   const editingItem = editingIndex === null ? null : value[editingIndex]
 
   function addItem() {
@@ -310,6 +311,42 @@ function ArrayEditor({ fieldKey, value, path, onChange, projectCategories }: { f
     if (editingIndex === null) return
     if (editingIndex === index) setEditingIndex(null)
     if (editingIndex > index) setEditingIndex(editingIndex - 1)
+  }
+
+  function moveItem(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= value.length || toIndex >= value.length) return
+
+    const next = [...value]
+    const [item] = next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, item)
+    onChange(path, next)
+
+    if (editingIndex === null) return
+    if (editingIndex === fromIndex) {
+      setEditingIndex(toIndex)
+    } else if (fromIndex < toIndex && editingIndex > fromIndex && editingIndex <= toIndex) {
+      setEditingIndex(editingIndex - 1)
+    } else if (fromIndex > toIndex && editingIndex >= toIndex && editingIndex < fromIndex) {
+      setEditingIndex(editingIndex + 1)
+    }
+  }
+
+  function handleDragStart(event: DragEvent<HTMLDivElement>, index: number) {
+    setDraggingIndex(index)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(index))
+  }
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>, index: number) {
+    event.preventDefault()
+    const fromIndex = draggingIndex ?? Number(event.dataTransfer.getData('text/plain'))
+    if (Number.isInteger(fromIndex)) moveItem(fromIndex, index)
+    setDraggingIndex(null)
   }
 
   if (!isObjectArray) {
@@ -339,13 +376,31 @@ function ArrayEditor({ fieldKey, value, path, onChange, projectCategories }: { f
         </div>
       ) : (
         <div className="overflow-hidden rounded-md border border-border">
-          <div className="grid grid-cols-[1fr_auto] gap-3 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground md:grid-cols-[minmax(180px,1fr)_180px_auto]">
+          <div className="grid grid-cols-[2rem_1fr_auto] gap-3 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground md:grid-cols-[2rem_minmax(180px,1fr)_180px_auto]">
+            <span className="sr-only">排序</span>
             <span>名称</span>
             <span className="hidden md:block">摘要</span>
             <span className="text-right">操作</span>
           </div>
           {value.map((item, index) => (
-            <div key={index} className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-border px-4 py-3 md:grid-cols-[minmax(180px,1fr)_180px_auto]">
+            <div
+              key={index}
+              className={`grid grid-cols-[2rem_1fr_auto] items-center gap-3 border-t border-border px-4 py-3 transition-colors md:grid-cols-[2rem_minmax(180px,1fr)_180px_auto] ${draggingIndex === index ? 'bg-muted/70' : ''}`}
+              onDragOver={handleDragOver}
+              onDrop={(event) => handleDrop(event, index)}
+            >
+              <div
+                draggable
+                role="button"
+                tabIndex={0}
+                title="拖动排序"
+                aria-label="拖动排序"
+                className="flex h-9 w-8 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-muted active:cursor-grabbing"
+                onDragStart={(event) => handleDragStart(event, index)}
+                onDragEnd={() => setDraggingIndex(null)}
+              >
+                <GripVertical className="h-4 w-4" />
+              </div>
               <div className="min-w-0">
                 <div className="truncate font-medium">{getItemTitle(item, index)}</div>
                 <div className="mt-1 flex flex-wrap gap-2 md:hidden">

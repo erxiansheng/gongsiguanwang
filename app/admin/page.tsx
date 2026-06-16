@@ -1,7 +1,7 @@
 "use client"
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { LogOut, RefreshCw, Save, Trash2, Upload } from 'lucide-react'
+import { ArrowUp, BarChart3, Globe2, LogOut, Mail, MapPin, RefreshCw, Save, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import ContentEditor from './content-editor'
@@ -18,16 +18,64 @@ interface ContactMessage {
   createdAt: number
 }
 
+interface VisitLog {
+  id: string
+  ip: string
+  location: string
+  path: string
+  createdAt: number
+}
+
+interface RegionVisit {
+  location: string
+  count: number
+  latestIp?: string
+  latestPath?: string
+  latestAt?: number
+}
+
+interface AdminStats {
+  posts: number
+  categories: number
+  images: number
+  comments: number
+  totalVisits: number
+  todayVisits: number
+  regionVisits: RegionVisit[]
+  visitLogs: VisitLog[]
+}
+
+interface SmtpSettings {
+  smtpHost: string
+  smtpPort: number
+  smtpUser: string
+  smtpPassword: string
+  smtpPasswordSet?: boolean
+  mailTo: string
+}
+
+const DEFAULT_SMTP_SETTINGS: SmtpSettings = {
+  smtpHost: '',
+  smtpPort: 465,
+  smtpUser: '',
+  smtpPassword: '',
+  mailTo: ''
+}
+
 export default function AdminPage() {
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('admin123456')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [token, setToken] = useState<string | null>(null)
   const [draftContent, setDraftContent] = useState<any>(normalizeSiteContent(defaultSiteContent))
   const [status, setStatus] = useState('请登录后编辑站点内容。')
   const [messages, setMessages] = useState<ContactMessage[]>([])
+  const [stats, setStats] = useState<AdminStats | null>(null)
+  const [smtpSettings, setSmtpSettings] = useState<SmtpSettings>(DEFAULT_SMTP_SETTINGS)
+  const [smtpStatus, setSmtpStatus] = useState('SMTP 通知未读取。')
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isSeedingImages, setIsSeedingImages] = useState(false)
+  const [isSavingSmtp, setIsSavingSmtp] = useState(false)
 
   const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
@@ -40,6 +88,8 @@ export default function AdminPage() {
     if (!token) return
     loadContent()
     loadMessages()
+    loadStats()
+    loadSmtpSettings()
   }, [token])
 
   async function login(event: FormEvent<HTMLFormElement>) {
@@ -222,6 +272,65 @@ export default function AdminPage() {
     }
   }
 
+  async function loadStats() {
+    if (!token) return
+    try {
+      const response = await fetch(apiUrl('/admin/stats'), { headers: authHeaders, cache: 'no-store' })
+      const result = await response.json()
+      if (response.ok) setStats(result)
+    } catch {
+      setStats(null)
+    }
+  }
+
+  async function loadSmtpSettings() {
+    if (!token) return
+    setSmtpStatus('正在读取 SMTP 通知配置...')
+    try {
+      const response = await fetch(apiUrl('/admin/smtp'), { headers: authHeaders, cache: 'no-store' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || '读取 SMTP 配置失败')
+      setSmtpSettings({
+        ...DEFAULT_SMTP_SETTINGS,
+        ...result.settings,
+        smtpPassword: ''
+      })
+      setSmtpStatus('SMTP 通知配置已加载。')
+    } catch (error) {
+      setSmtpStatus(error instanceof Error ? error.message : '读取 SMTP 配置失败')
+    }
+  }
+
+  async function saveSmtpSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!token) return
+    setIsSavingSmtp(true)
+    setSmtpStatus('正在保存 SMTP 通知配置...')
+    try {
+      const response = await fetch(apiUrl('/admin/smtp'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify(smtpSettings),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'SMTP 配置保存失败')
+      setSmtpSettings({
+        ...DEFAULT_SMTP_SETTINGS,
+        ...result.settings,
+        smtpPassword: ''
+      })
+      setSmtpStatus('SMTP 通知配置已保存。')
+    } catch (error) {
+      setSmtpStatus(error instanceof Error ? error.message : 'SMTP 配置保存失败')
+    } finally {
+      setIsSavingSmtp(false)
+    }
+  }
+
+  function updateSmtpSettings<K extends keyof SmtpSettings>(key: K, value: SmtpSettings[K]) {
+    setSmtpSettings((previous) => ({ ...previous, [key]: value }))
+  }
+
   async function deleteMessage(id: string) {
     if (!token) return
     if (!confirm('确定要删除这条留言吗？')) return
@@ -243,20 +352,24 @@ export default function AdminPage() {
     }
   }
 
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   if (!token) {
     return (
       <main className="min-h-screen bg-muted/30 px-4 py-24">
         <div className="mx-auto max-w-md rounded-lg border border-border bg-card p-8 shadow-sm">
           <h1 className="font-playfair text-3xl font-bold mb-2">后台登录</h1>
-          <p className="text-muted-foreground mb-8">预留账号：admin，密码：admin123456。</p>
+          <p className="text-muted-foreground mb-8">请输入后台账号和密码。</p>
           <form onSubmit={login} className="space-y-5">
             <div>
               <label className="text-sm font-medium">账号</label>
-              <Input value={username} onChange={(event) => setUsername(event.target.value)} className="mt-2" />
+              <Input value={username} onChange={(event) => setUsername(event.target.value)} className="mt-2" autoComplete="username" />
             </div>
             <div>
               <label className="text-sm font-medium">密码</label>
-              <Input value={password} onChange={(event) => setPassword(event.target.value)} type="password" className="mt-2" />
+              <Input value={password} onChange={(event) => setPassword(event.target.value)} type="password" className="mt-2" autoComplete="current-password" />
             </div>
             <Button type="submit" className="w-full">登录</Button>
           </form>
@@ -312,6 +425,133 @@ export default function AdminPage() {
             </section>
 
             <section className="rounded-lg border border-border bg-card p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-bold">SMTP 通知邮箱</h2>
+              </div>
+              <form onSubmit={saveSmtpSettings} className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">通知邮箱</label>
+                  <Input
+                    value={smtpSettings.mailTo}
+                    onChange={(event) => updateSmtpSettings('mailTo', event.target.value)}
+                    placeholder="多个邮箱用逗号分隔"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div className="grid grid-cols-[1fr_92px] gap-3">
+                  <div>
+                    <label className="text-sm font-medium">SMTP 服务器</label>
+                    <Input
+                      value={smtpSettings.smtpHost}
+                      onChange={(event) => updateSmtpSettings('smtpHost', event.target.value)}
+                      placeholder="smtp.example.com"
+                      className="mt-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">SMTP 端口</label>
+                    <Input
+                      value={smtpSettings.smtpPort}
+                      onChange={(event) => updateSmtpSettings('smtpPort', Number(event.target.value) || 465)}
+                      type="number"
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">SMTP 用户名</label>
+                  <Input
+                    value={smtpSettings.smtpUser}
+                    onChange={(event) => updateSmtpSettings('smtpUser', event.target.value)}
+                    placeholder="name@example.com"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">SMTP 密码/授权码</label>
+                  <Input
+                    value={smtpSettings.smtpPassword}
+                    onChange={(event) => updateSmtpSettings('smtpPassword', event.target.value)}
+                    type="password"
+                    placeholder={smtpSettings.smtpPasswordSet ? '已保存，留空则不修改' : '请输入 SMTP 密码或授权码'}
+                    className="mt-2"
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isSavingSmtp}>
+                  <Save className="mr-2 h-4 w-4" />{isSavingSmtp ? '保存中' : '保存 SMTP 配置'}
+                </Button>
+              </form>
+              <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{smtpStatus}</p>
+            </section>
+
+            <section className="rounded-lg border border-border bg-card p-6">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-xl font-bold">访问统计</h2>
+                <Button size="sm" variant="outline" onClick={loadStats}>刷新</Button>
+              </div>
+              {stats ? (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-md border border-border p-4">
+                      <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                        <BarChart3 className="h-4 w-4" />今日访问
+                      </div>
+                      <div className="text-2xl font-bold">{stats.todayVisits}</div>
+                    </div>
+                    <div className="rounded-md border border-border p-4">
+                      <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                        <Globe2 className="h-4 w-4" />总访问
+                      </div>
+                      <div className="text-2xl font-bold">{stats.totalVisits}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold">地区/IP 分布</h3>
+                    <div className="space-y-3">
+                      {stats.regionVisits.length === 0 && <p className="text-sm text-muted-foreground">暂无访问地区数据。</p>}
+                      {stats.regionVisits.slice(0, 8).map((region) => (
+                        <div key={region.location} className="rounded-md border border-border p-3 text-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 font-medium">
+                                <MapPin className="h-4 w-4 flex-shrink-0 text-primary" />
+                                <span className="truncate">{region.location}</span>
+                              </div>
+                              {region.latestIp && <div className="mt-1 text-muted-foreground">最近 IP：{region.latestIp}</div>}
+                            </div>
+                            <span className="rounded-full bg-muted px-2 py-1 text-xs">{region.count}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold">最近访客</h3>
+                    <div className="space-y-3">
+                      {stats.visitLogs.length === 0 && <p className="text-sm text-muted-foreground">暂无访客记录。</p>}
+                      {stats.visitLogs.slice(0, 8).map((visit) => (
+                        <div key={visit.id} className="rounded-md border border-border p-3 text-sm">
+                          <div className="font-medium">{visit.ip}</div>
+                          <div className="mt-1 text-muted-foreground">{visit.location} · {visit.path}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">{new Date(visit.createdAt).toLocaleString('zh-CN')}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">暂无统计数据。</p>
+              )}
+            </section>
+
+            <section className="rounded-lg border border-border bg-card p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold">联系留言</h2>
                 <Button size="sm" variant="outline" onClick={loadMessages}>刷新</Button>
@@ -345,6 +585,15 @@ export default function AdminPage() {
           </aside>
         </div>
       </div>
+      <Button
+        type="button"
+        size="icon"
+        className="fixed bottom-6 right-6 z-50 h-11 w-11 rounded-full shadow-lg"
+        onClick={scrollToTop}
+        aria-label="回到顶部"
+      >
+        <ArrowUp className="h-5 w-5" />
+      </Button>
     </main>
   )
 }

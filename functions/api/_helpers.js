@@ -1,5 +1,5 @@
 const KV_BINDING_NAMES = ['site_kv', 'SITE_KV', 'blog_data']
-const DEFAULT_TOKEN_SECRET = 'chengzao-admin-secret-change-me'
+const DEFAULT_TOKEN_SECRET = 'jkyc-admin-secret-change-me'
 
 function createAliyunKVWrapper(namespace) {
   const kv = new EdgeKV({ namespace })

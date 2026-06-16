@@ -15,10 +15,25 @@ export default function ProjectsPage() {
   const [activeCategory, setActiveCategory] = useState(content.projectsPage.allCategoryLabel)
   const allCategoryLabel = content.projectsPage.allCategoryLabel
 
-  const categories = useMemo(
-    () => [allCategoryLabel, ...content.projectCategories],
-    [allCategoryLabel, content.projectCategories]
-  )
+  const categories = useMemo(() => {
+    const categoryKeysWithProjects = new Set(
+      content.projects
+        .map((project) => normalizeCategoryLabel(project.category))
+        .filter(Boolean)
+    )
+    const configuredCategories = content.projectCategories.filter((category) =>
+      categoryKeysWithProjects.has(normalizeCategoryLabel(category))
+    )
+    const configuredCategoryKeys = new Set(configuredCategories.map(normalizeCategoryLabel))
+    const projectOnlyCategories = content.projects
+      .map((project) => normalizeCategoryLabel(project.category))
+      .filter((category) => category && !configuredCategoryKeys.has(category))
+
+    return [
+      allCategoryLabel,
+      ...Array.from(new Map([...configuredCategories, ...projectOnlyCategories].map((category) => [normalizeCategoryLabel(category), category])).values())
+    ]
+  }, [allCategoryLabel, content.projectCategories, content.projects])
 
   useEffect(() => {
     const activeCategoryKey = normalizeCategoryLabel(activeCategory)

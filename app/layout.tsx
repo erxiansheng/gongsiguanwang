@@ -4,12 +4,18 @@ import { ThemeProvider } from '@/components/theme-provider';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import SeoUpdater from '@/components/seo-updater';
+import VisitTracker from '@/components/visit-tracker';
 
 export const metadata: Metadata = {
-  title: '澄造数字 | 品牌与数字体验工作室',
-  description: '以策略、设计与技术帮助品牌建立清晰、有温度、可持续增长的数字体验。',
-  keywords: ['品牌设计', '网站建设', '用户体验设计', '数字化转型', '企业官网'],
+  title: '金科云创 | 专业车载测试培训',
+  description: '更专业 · 更负责 · 好就业 · 好口碑 帮助每一个学员完成就业',
+  keywords: ['车载测试', '车载测试培训', '新能源汽车测试', 'HIL测试', '智能驾驶测试'],
   robots: 'index, follow',
+  icons: {
+    icon: '/images/logo.png',
+    shortcut: '/images/logo.png',
+    apple: '/images/logo.png',
+  },
 };
 
 export default function RootLayout({
@@ -28,6 +34,7 @@ export default function RootLayout({
         >
           <div className="flex min-h-screen flex-col">
             <SeoUpdater />
+            <VisitTracker />
             <Header />
             <main className="flex-1">{children}</main>
             <Footer />

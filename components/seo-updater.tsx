@@ -3,6 +3,8 @@
 import { useEffect } from 'react'
 import { useSiteContent } from '@/hooks/use-site-content'
 
+const DEFAULT_FAVICON_URL = '/images/logo.png'
+
 export default function SeoUpdater() {
   const { content } = useSiteContent()
   const site = content.site
@@ -12,7 +14,7 @@ export default function SeoUpdater() {
     updateMeta('description', site.description)
     updateMeta('keywords', site.seoKeywords)
     updateMeta('robots', site.seoRobots)
-    updateFavicon(site.faviconUrl)
+    updateFavicon(site.faviconUrl || DEFAULT_FAVICON_URL)
   }, [site])
 
   return null
@@ -37,5 +39,6 @@ function updateFavicon(href?: string) {
     element.rel = 'icon'
     document.head.appendChild(element)
   }
+  element.type = 'image/png'
   element.href = href
 }

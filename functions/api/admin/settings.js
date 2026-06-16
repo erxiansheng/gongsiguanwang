@@ -12,10 +12,10 @@ export async function onRequestPut({ request }) {
 
     const updated = {
       ...existing,
-      siteName: body.siteName ?? existing.siteName ?? '澄造数字',
-      subtitle: body.subtitle ?? existing.subtitle ?? '',
-      description: body.description ?? existing.description ?? '',
-      about: body.about ?? existing.about ?? '',
+      siteName: body.siteName ?? existing.siteName ?? '金科云创车载测试',
+      subtitle: body.subtitle ?? existing.subtitle ?? '专业车载测试培训',
+      description: body.description ?? existing.description ?? '更专业 · 更负责 · 好就业 · 好口碑 帮助每一个学员完成就业',
+      about: body.about ?? existing.about ?? '金科云创致力于帮助0基础学员转行为车企工程师。',
       socialLinks: body.socialLinks ?? existing.socialLinks ?? [],
       faviconSvg: body.faviconSvg ?? existing.faviconSvg ?? '',
       navDockTitle: body.navDockTitle ?? existing.navDockTitle ?? '',

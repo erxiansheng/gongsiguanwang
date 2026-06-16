@@ -10,6 +10,7 @@ import commentsHandler from './api/comments.js'
 import captchaHandler from './api/captcha.js'
 import contentHandler from './api/content.js'
 import contactHandler from './api/contact.js'
+import visitHandler from './api/visit.js'
 
 import adminLoginHandler from './api/admin/login.js'
 import adminContentHandler from './api/admin/content.js'
@@ -26,6 +27,7 @@ import adminStatsHandler from './api/admin/stats.js'
 import adminBackupHandler from './api/admin/backup.js'
 import adminNavlinksHandler from './api/admin/navlinks.js'
 import adminMessagesHandler from './api/admin/messages.js'
+import adminSmtpHandler from './api/admin/smtp.js'
 
 import uploadsHandler from './uploads/[filename].js'
 
@@ -39,6 +41,7 @@ const exactRoutes = {
   '/api/captcha': captchaHandler,
   '/api/content': contentHandler,
   '/api/contact': contactHandler,
+  '/api/visit': visitHandler,
   '/api/admin/login': adminLoginHandler,
   '/api/admin/content': adminContentHandler,
   '/api/admin/settings': adminSettingsHandler,
@@ -52,6 +55,7 @@ const exactRoutes = {
   '/api/admin/backup': adminBackupHandler,
   '/api/admin/navlinks': adminNavlinksHandler,
   '/api/admin/messages': adminMessagesHandler,
+  '/api/admin/smtp': adminSmtpHandler,
 }
 
 // 动态路由：[pattern, handler]

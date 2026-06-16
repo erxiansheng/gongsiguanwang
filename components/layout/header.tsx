@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, Moon, Sun, X } from 'lucide-react'
@@ -8,6 +9,32 @@ import { Button } from '@/components/ui/button'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { useSiteContent } from '@/hooks/use-site-content'
+
+const LOGO_TEXT_TO_REPLACE = '金科云创'
+
+function BrandMark({ brandName }: { brandName: string }) {
+  const suffix = brandName.startsWith(LOGO_TEXT_TO_REPLACE)
+    ? brandName.slice(LOGO_TEXT_TO_REPLACE.length)
+    : brandName
+
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+      <Image
+        src="/images/logo2.png"
+        alt={LOGO_TEXT_TO_REPLACE}
+        width={1200}
+        height={452}
+        priority
+        className="h-6 w-auto flex-shrink-0 object-contain sm:h-7 md:h-8"
+      />
+      {suffix && (
+        <span className="truncate font-playfair text-xl font-bold leading-none tracking-tight sm:text-2xl">
+          {suffix}
+        </span>
+      )}
+    </span>
+  )
+}
 
 export default function Header() {
   const { content, isLoading } = useSiteContent()
@@ -48,10 +75,8 @@ export default function Header() {
       >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <span className="font-playfair text-2xl font-bold tracking-tight">
-                {content.site.brandName}
-              </span>
+            <Link href="/" className="flex min-w-0 items-center">
+              <BrandMark brandName={content.site.brandName} />
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
@@ -105,10 +130,8 @@ export default function Header() {
         <div className="fixed inset-0 z-[110] min-h-dvh overflow-y-auto bg-background text-foreground shadow-2xl">
           <div className="container mx-auto px-4 py-6">
             <div className="flex items-center justify-between mb-8">
-              <Link href="/" className="flex items-center space-x-2" onClick={() => setMobileMenuOpen(false)}>
-                <span className="font-playfair text-2xl font-bold tracking-tight">
-                  {content.site.brandName}
-                </span>
+              <Link href="/" className="flex min-w-0 items-center" onClick={() => setMobileMenuOpen(false)}>
+                <BrandMark brandName={content.site.brandName} />
               </Link>
               <Button
                 variant="ghost"
