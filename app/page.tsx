@@ -1,6 +1,5 @@
 "use client"
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, ArrowUpRight, BarChart, Code, PenTool, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,13 +18,28 @@ export default function Home() {
       <section className="relative h-screen flex items-center">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-background/20 dark:from-background/95 dark:via-background/80 dark:to-background/95 z-10" />
-          <Image
-            src={content.home.hero.image}
-            alt={content.home.hero.title}
-            fill
-            className="object-cover"
-            priority
-          />
+          <video
+            className="absolute inset-0 hidden h-full w-full object-cover md:block"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster={content.home.hero.image}
+          >
+            <source src="/sp/pc.mp4" type="video/mp4" />
+          </video>
+          <video
+            className="absolute inset-0 h-full w-full object-cover md:hidden"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster={content.home.hero.image}
+          >
+            <source src="/sp/mobile.mp4" type="video/mp4" />
+          </video>
         </div>
 
         <div className="container relative z-20 px-4 md:px-6">
